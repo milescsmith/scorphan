@@ -1,0 +1,40 @@
+[project]
+name = "scorphan"
+version = "0.1.0"
+description = "Collection of orphan helper fuctions for single cell omics data analysis"
+authors = [
+    {name = "Miles Smith", email = "miles-smith@omrf.org"},
+]
+dependencies = [
+    "numpy>=1.26.4",
+    "scipy>=1.14.0",
+    "umap>=0.1.1",
+    "mudata>=0.3.0",
+    "muon>=0.1.6",
+    "scanpy>=1.10.2",
+    "numba>=0.60.0",
+    "vaeda @ git+https://github.com/kostkalab/vaeda",
+    "loguru>=0.7.2",
+]
+requires-python = ">=3.11"
+readme = "README.md"
+license = {text = "MIT"}
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch]
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.pdm]
+distribution = true
+
+[tool.pdm.dev-dependencies]
+dev = [
+    "ruff>=0.5.7",
+    "nox>=2024.4.15",
+    "pre-commit>=3.8.0",
+    "sourcery>=1.21.0",
+]
