@@ -3,9 +3,9 @@ from importlib.metadata import PackageNotFoundError, version
 
 from loguru import logger
 
-from scorphan import aggregation as ag
-from scorphan import preprocessing as pp
-from scorphan import tools as tl
+from scorphan import _aggregation as ag
+from scorphan import _preprocessing as pp
+from scorphan import _tools as tl
 
 logger.disable("scorphan")
 

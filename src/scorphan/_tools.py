@@ -16,7 +16,7 @@ from rich.progress import Progress
 from scanpy.tools._utils import _choose_representation
 from scipy.sparse import issparse
 
-from scorphan.utils import is_integer_array
+from scorphan._utils import is_integer_array
 
 MAX_PVAL: Final[float] = 0.05
 

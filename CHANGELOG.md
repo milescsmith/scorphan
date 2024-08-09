@@ -1,5 +1,12 @@
 # scorphan
 
+## [0.3.0] - 2024/08/09
+
+### Changed
+
+- renamed the `processing` submodule to `preprocessing`
+- made all of the submodules private
+
 ## [0.2.0] - 2024/08/09
 
 ### Added
@@ -12,5 +19,6 @@
 
 - Created module
 
+[0.3.0]: https://github.com/milescsmith/scorphan/releases/compare/0.2.0..0.3.0
 [0.2.0]: https://github.com/milescsmith/scorphan/releases/compare/0.1.0..0.2.0
 [0.1.0]: https://github.com/milescsmith/scorphan/releases/tag/v0.0.1
