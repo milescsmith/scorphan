@@ -5,7 +5,7 @@
 groups = ["default", "dev"]
 strategy = ["inherit_metadata"]
 lock_version = "4.5.0"
-content_hash = "sha256:1d65f683865bd42aa158b38da264e56ae83e7761c5e294108182dee89aa7d2e0"
+content_hash = "sha256:6f4e62489bf73f74c60b1bc7c0fadbbc4abd8ff2a7945885d80f38b23f8858d8"
 
 [[metadata.targets]]
 requires_python = ">=3.11"
@@ -364,6 +364,35 @@ files = [
     {file = "grpcio-1.65.4-cp312-cp312-win32.whl", hash = "sha256:d72962788b6c22ddbcdb70b10c11fbb37d60ae598c51eb47ec019db66ccfdff0"},
     {file = "grpcio-1.65.4-cp312-cp312-win_amd64.whl", hash = "sha256:7656376821fed8c89e68206a522522317787a3d9ed66fb5110b1dff736a5e416"},
     {file = "grpcio-1.65.4.tar.gz", hash = "sha256:2a4f476209acffec056360d3e647ae0e14ae13dcf3dfb130c227ae1c594cbe39"},
+]
+
+[[package]]
+name = "gseapy"
+version = "1.1.3"
+requires_python = ">=3.7"
+summary = "Gene Set Enrichment Analysis in Python"
+groups = ["default"]
+dependencies = [
+    "matplotlib>=2.2",
+    "numpy>=1.13.0",
+    "pandas",
+    "requests",
+    "scipy",
+]
+files = [
+    {file = "gseapy-1.1.3-cp311-cp311-macosx_11_0_arm64.whl", hash = "sha256:c56f03710cf7f35ab3df562af2a3054d9935bf077f12ee1204300baa35b20e32"},
+    {file = "gseapy-1.1.3-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:e7378cfafa1496f9ef9f35baffccd07d352ffb525746e3ea7dd1420cc13f991e"},
+    {file = "gseapy-1.1.3-cp311-cp311-manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:1d7279fb6a077aba3e61e3bf696d1d65753bb53b4114df7a2a5666ef8a1cee8a"},
+    {file = "gseapy-1.1.3-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:1e25ff23ad670fc3e643814c9dd06e5d9924549c46b579e3a426025fd6aadf19"},
+    {file = "gseapy-1.1.3-cp311-cp311-win32.whl", hash = "sha256:dbe2cdf67dcf085e073de65d698fa6b7210fc38ad2cb615bfe4efba2abfb3e56"},
+    {file = "gseapy-1.1.3-cp311-cp311-win_amd64.whl", hash = "sha256:6d04bfe7e6fdcb2b35103d7432b0c03e31d8017824ffa6e1f7d232d1154dcc5b"},
+    {file = "gseapy-1.1.3-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:aa551ba1cae055ac8c6b1203a7845317aab30f49d2fb9f6a2cd84d0da1762a5a"},
+    {file = "gseapy-1.1.3-cp312-cp312-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:48a471200a55147fd6abebd64277e4d91b39d0813ab6da7c091bad3a9d58edd1"},
+    {file = "gseapy-1.1.3-cp312-cp312-manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:2c9c28257b5f8646701a9ac2f2401988187212d4b42b29597985196aa2291263"},
+    {file = "gseapy-1.1.3-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:cfea067617a0fa37a6b57a02975e14f96af40ad7c1ccb26e4d69c02689cbdd5e"},
+    {file = "gseapy-1.1.3-cp312-cp312-win32.whl", hash = "sha256:59bad66ef313491d6ad24be786243b0bf6327b960c20bfd418437a17292a327b"},
+    {file = "gseapy-1.1.3-cp312-cp312-win_amd64.whl", hash = "sha256:6e92e5c4bc35b77819026466c343161ffd6ad926fb9a6dea1f2b50ac32aa090e"},
+    {file = "gseapy-1.1.3.tar.gz", hash = "sha256:7f9218bb4014a862680d4d3e806e59bec8f81601e876a04495922da81da1b395"},
 ]
 
 [[package]]
@@ -1346,6 +1375,22 @@ files = [
     {file = "sourcery-1.21.0-py2.py3-none-macosx_10_9_universal2.whl", hash = "sha256:a6f8cf3e34331a1e7f050d2037b39ea45cd276617a231f54044e2fa52f615113"},
     {file = "sourcery-1.21.0-py2.py3-none-manylinux1_x86_64.whl", hash = "sha256:5fd7fb4e497335cdbf505e31f8fd14b4e27c516d7bf4a63d22ae24f47af2b125"},
     {file = "sourcery-1.21.0-py2.py3-none-win_amd64.whl", hash = "sha256:22e2c17cba47b3bbdbe56c2fa14423d1f1e8077a16a0e8d42a32c914e279e25e"},
+]
+
+[[package]]
+name = "sparse"
+version = "0.15.4"
+requires_python = ">=3.8"
+summary = "Sparse n-dimensional arrays for the PyData ecosystem"
+groups = ["default"]
+dependencies = [
+    "numba>=0.49",
+    "numpy>=1.17",
+    "scipy>=0.19",
+]
+files = [
+    {file = "sparse-0.15.4-py2.py3-none-any.whl", hash = "sha256:76ec76fee2aee82a84eb97155dd530a9644e3b1fdea2406bc4b454698b36d938"},
+    {file = "sparse-0.15.4.tar.gz", hash = "sha256:d4b1c57d24ff0f64f2fd5b5a95b49b7fb84ed207a26d7d58ce2764dcc5c72b84"},
 ]
 
 [[package]]
