@@ -1,5 +1,6 @@
 import numbers
 import warnings
+from enum import StrEnum
 from functools import partial
 from typing import Final, Literal
 
@@ -30,6 +31,7 @@ from scipy.sparse import (
 )
 from scipy.spatial.distance import cdist
 from scipy.special import softmax
+from scipy.stats import median_abs_deviation
 from umap.umap_ import nearest_neighbors
 
 LARGE_NUMBER_OF_OBSERVATIONS: Final[int] = 50000
@@ -37,6 +39,11 @@ LOW_MEMORY_SPARSE_SPLITS: Final[int] = 10000
 LARGE_MEMORY_SPARSE_SPLITS: Final[int] = 30000
 
 # revised processing function, including rudimentary protein scrubbing
+
+
+class DoubletFilter(StrEnum):
+    scrublet = "scrublet"
+    vaeda = "vaeda"
 
 
 def value_quantile(arr: np.ndarray) -> np.ndarray:
@@ -82,6 +89,15 @@ def quantile_trim_rows(
         res[:, i] = above_below(arr[:, i], lower_bounds, upper_bounds)
 
 
+# stolen from https://www.sc-best-practices.org/preprocessing_visualization/quality_control.html#filtering-low-quality-cells
+def is_outlier(adata, metric: str, nmads: int):
+    met = adata.obs[metric]
+    outlier = (met < np.median(met) - nmads * median_abs_deviation(met)) | (
+        np.median(met) + nmads * median_abs_deviation(met) < met
+    )
+    return outlier
+
+
 # @typechecked
 def std_process_run(
     filtered: MuData,
@@ -90,37 +106,51 @@ def std_process_run(
     max_genes_quantile: float = 0.95,
     min_gene_total_counts: int = 1000,
     min_cells: int = 3,
-    max_percent_mt: float = 0.1,
+    max_percent_mt: float = 10.0,
     remove_isotype_outliers: bool = True,
     remove_all_feature_outliers: bool = False,
     max_isotype_counts_quantile: float = 0.95,
+    doublet_algorithm: DoubletFilter = DoubletFilter.scrublet,
 ):
     filtered.var_names_make_unique()
     filtered["rna"].var["mt"] = filtered["rna"].var_names.str.startswith("MT-")
+    filtered["rna"].var["ribo"] = filtered["rna"].var_names.str.startswith(("RPS", "RPL"))
+    filtered["rna"].var["hb"] = filtered["rna"].var_names.str.contains(r"^HB[^(P)]", regex=True)
 
     logger.info("Calculating QC metrics")
 
     sc.pp.calculate_qc_metrics(
         adata=filtered["rna"],
-        qc_vars=["mt"],
-        percent_top=None,
-        log1p=False,
+        qc_vars=["mt", "ribo", "hb"],
+        percent_top=(20, 50, 100, 200, 500),
+        log1p=True,
         inplace=True,
     )
 
-    logger.info("Running vaeda")
-    adata = vaeda.vaeda(filtered["rna"].copy(), seed=20150318)
-    # sce.pp.scrublet(filtered["rna"])
-    filtered["rna"].obs = filtered["rna"].obs.join(adata.obs[["vaeda_scores", "vaeda_calls"]], how="left")
-    mu.pp.filter_obs(filtered["rna"], "vaeda_calls", lambda x: x == "singlet")
-
     logger.info("Filtering cells and genes")
+    filtered["rna"].obs["outlier"] = (
+        is_outlier(filtered["rna"], "log1p_total_counts", 5)
+        | is_outlier(filtered["rna"], "log1p_n_genes_by_counts", 5)
+        | is_outlier(filtered["rna"], "pct_counts_in_top_20_genes", 5)
+        | is_outlier(filtered["rna"], "pct_counts_mt", 3)
+        | (filtered["rna"].obs["pct_counts_mt"] > max_percent_mt)
+    )
 
-    mu.pp.filter_var(filtered["rna"], "n_cells_by_counts", lambda x: x >= min_cells)
-    mu.pp.filter_obs(filtered["rna"], "n_genes_by_counts", lambda x: x >= min_genes)
-    mu.pp.filter_obs(filtered["rna"], "total_counts", lambda x: x > min_gene_total_counts)
-    mu.pp.filter_obs(filtered["rna"], "pct_counts_mt", lambda x: x < max_percent_mt * 100)
+    # mu.pp.filter_var(filtered["rna"], "n_cells_by_counts", lambda x: x >= min_cells)
+    # mu.pp.filter_obs(filtered["rna"], "n_genes_by_counts", lambda x: x >= min_genes)
+    filtered["rna"] = filtered["rna"][~filtered["rna"].obs["outlier"], :]
     mu.pp.intersect_obs(filtered)
+
+    match doublet_algorithm:
+        case DoubletFilter.scrublet:
+            logger.info("Running Scrublet")
+            sc.pp.scrublet(filtered["rna"])
+            mu.pp.filter_obs(filtered["rna"], "predicted_doublet", lambda x: x is True)
+        case DoubletFilter.vaeda:
+            logger.info("Running vaeda")
+            adata = vaeda.vaeda(filtered["rna"].copy(), seed=20150318)
+            filtered["rna"].obs = filtered["rna"].obs.join(adata.obs[["vaeda_scores", "vaeda_calls"]], how="left")
+            mu.pp.filter_obs(filtered["rna"], "vaeda_calls", lambda x: x == "singlet")
 
     logger.info("finding isotype controls")
     isotype_controls = raw.mod["prot"].var.index[raw.mod["prot"].var.index.str.match("Isotype")]
