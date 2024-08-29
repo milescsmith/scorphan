@@ -138,20 +138,20 @@ def std_process_run(
 
     # mu.pp.filter_var(filtered["rna"], "n_cells_by_counts", lambda x: x >= min_cells)
     # mu.pp.filter_obs(filtered["rna"], "n_genes_by_counts", lambda x: x >= min_genes)
-    filtered["rna"] = filtered["rna"][~filtered["rna"].obs["outlier"], :]
-    mu.pp.intersect_obs(filtered)
+    mu.pp.filter_obs(filtered["rna"], "outlier", lambda x: ~x)
 
     match doublet_algorithm:
         case DoubletFilter.scrublet:
             logger.info("Running Scrublet")
             sc.pp.scrublet(filtered["rna"])
-            mu.pp.filter_obs(filtered["rna"], "predicted_doublet", lambda x: x is True)
+            mu.pp.filter_obs(filtered["rna"], "predicted_doublet", lambda x: ~x)
         case DoubletFilter.vaeda:
             logger.info("Running vaeda")
             adata = vaeda.vaeda(filtered["rna"].copy(), seed=20150318)
             filtered["rna"].obs = filtered["rna"].obs.join(adata.obs[["vaeda_scores", "vaeda_calls"]], how="left")
             mu.pp.filter_obs(filtered["rna"], "vaeda_calls", lambda x: x == "singlet")
 
+    mu.pp.intersect_obs(filtered)
     logger.info("finding isotype controls")
     isotype_controls = raw.mod["prot"].var.index[raw.mod["prot"].var.index.str.match("Isotype")]
 

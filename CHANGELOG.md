@@ -1,5 +1,11 @@
 # scorphan
 
+## [0.4.1] - 2024/08/29
+
+### Fixed
+
+- Minor fix for `so.pp.std_process_run`
+
 ## [0.4.0] - 2024/08/29
 
 ### Changed
