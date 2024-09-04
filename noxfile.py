@@ -62,3 +62,12 @@ def coverage(session: nox.Session) -> None:
 
     session.run("coverage", "json", "--fail-under=0")
     session.run("codecov", *args)
+
+
+@nox.session
+def lint(session: nox.session) -> None:
+    """Lint using ruff."""
+    args = session.posargs or locations
+    session.install("ruff")
+    session.run("ruff", "check", "--fix", *args)
+    session.run("ruff", "format", *args)

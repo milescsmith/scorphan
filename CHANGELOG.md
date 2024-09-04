@@ -1,5 +1,11 @@
 # scorphan
 
+## [0.5.0] - 2024/09/04
+
+### Changed
+
+- Moved `so.pp.std_process_run()` components over to the `dsd` module
+
 ## [0.4.1] - 2024/08/29
 
 ### Fixed

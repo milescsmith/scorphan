@@ -1,18 +1,11 @@
 import numbers
 import warnings
-from enum import StrEnum
-from functools import partial
 from typing import Final, Literal
 
-import muon as mu
 import numpy as np
 import numpy.typing as npt
-import scanpy as sc
-import scipy as sp
-import vaeda
 from loguru import logger
 from mudata import MuData
-from muon import prot as pt
 from muon._core.preproc import (
     _jaccard_euclidean_metric,
     _jaccard_sparse_euclidean_metric,
@@ -20,7 +13,6 @@ from muon._core.preproc import (
     _sparse_csr_fast_knn,
     _sparse_csr_ptp,
 )
-from numba import float32, float64, guvectorize, int32, int64, vectorize
 from scanpy import logging
 from scanpy.neighbors._connectivity import umap as _compute_connectivities_umap
 from scanpy.tools._utils import _choose_representation
@@ -31,173 +23,11 @@ from scipy.sparse import (
 )
 from scipy.spatial.distance import cdist
 from scipy.special import softmax
-from scipy.stats import median_abs_deviation
 from umap.umap_ import nearest_neighbors
 
 LARGE_NUMBER_OF_OBSERVATIONS: Final[int] = 50000
 LOW_MEMORY_SPARSE_SPLITS: Final[int] = 10000
 LARGE_MEMORY_SPARSE_SPLITS: Final[int] = 30000
-
-# revised processing function, including rudimentary protein scrubbing
-
-
-class DoubletFilter(StrEnum):
-    scrublet = "scrublet"
-    vaeda = "vaeda"
-
-
-def value_quantile(arr: np.ndarray) -> np.ndarray:
-    # hacky way to loop over the array of counts and calculate each's quantile.
-    # not sure why percentileofscore isn't already vectorized
-    # and we have to use partial here because percentileofscore's function
-    # signature is "iter, item" instead of "item, iter", meaning I cannot just pass
-    # the array to score as the vectorized first argument
-    return np.vectorize(partial(sp.stats.percentileofscore, a=arr))(score=arr)
-
-
-# using the numba.vectorize decorator speeds this up about 13x
-@vectorize(
-    [
-        float64(float64, float64, float64),
-        float32(float32, float32, float32),
-        int64(int64, int64, int64),
-        int32(int32, int32, int32),
-    ],
-    nopython=True,
-    fastmath=True,
-)
-def above_below(x: float, lower: float, upper: float) -> float:
-    if x < lower:
-        return lower
-    elif x > upper:
-        return upper
-    else:
-        return x
-
-
-@guvectorize([(float64[:, :], float64, float64, float64[:, :])], "(m,n),(),()->(m,n)")
-def quantile_trim_rows(
-    arr: npt.ArrayLike, lower: float = 0.10, upper: float = 0.99, res: npt.ArrayLike = None
-) -> npt.ArrayLike:
-    """
-    Row-by-row, calculate the lower and upper percentiles and then use those to replace values that are
-    below or above them, respectively
-    """
-    for i in range(arr.shape[1]):
-        lower_bounds = np.quantile(arr[:, i], lower)
-        upper_bounds = np.quantile(arr[:, i], upper)
-        res[:, i] = above_below(arr[:, i], lower_bounds, upper_bounds)
-
-
-# stolen from https://www.sc-best-practices.org/preprocessing_visualization/quality_control.html#filtering-low-quality-cells
-def is_outlier(adata, metric: str, nmads: int):
-    met = adata.obs[metric]
-    outlier = (met < np.median(met) - nmads * median_abs_deviation(met)) | (
-        np.median(met) + nmads * median_abs_deviation(met) < met
-    )
-    return outlier
-
-
-# @typechecked
-def std_process_run(
-    filtered: MuData,
-    raw: MuData | None = None,
-    min_genes: int = 500,
-    max_genes_quantile: float = 0.95,
-    min_gene_total_counts: int = 1000,
-    min_cells: int = 3,
-    max_percent_mt: float = 10.0,
-    remove_isotype_outliers: bool = True,
-    remove_all_feature_outliers: bool = False,
-    max_isotype_counts_quantile: float = 0.95,
-    doublet_algorithm: DoubletFilter = DoubletFilter.scrublet,
-):
-    filtered.var_names_make_unique()
-    filtered["rna"].var["mt"] = filtered["rna"].var_names.str.startswith("MT-")
-    filtered["rna"].var["ribo"] = filtered["rna"].var_names.str.startswith(("RPS", "RPL"))
-    filtered["rna"].var["hb"] = filtered["rna"].var_names.str.contains(r"^HB[^(P)]", regex=True)
-
-    logger.info("Calculating QC metrics")
-
-    sc.pp.calculate_qc_metrics(
-        adata=filtered["rna"],
-        qc_vars=["mt", "ribo", "hb"],
-        percent_top=(20, 50, 100, 200, 500),
-        log1p=True,
-        inplace=True,
-    )
-
-    logger.info("Filtering cells and genes")
-    filtered["rna"].obs["outlier"] = (
-        is_outlier(filtered["rna"], "log1p_total_counts", 5)
-        | is_outlier(filtered["rna"], "log1p_n_genes_by_counts", 5)
-        | is_outlier(filtered["rna"], "pct_counts_in_top_20_genes", 5)
-        | is_outlier(filtered["rna"], "pct_counts_mt", 3)
-        | (filtered["rna"].obs["pct_counts_mt"] > max_percent_mt)
-    )
-
-    # mu.pp.filter_var(filtered["rna"], "n_cells_by_counts", lambda x: x >= min_cells)
-    # mu.pp.filter_obs(filtered["rna"], "n_genes_by_counts", lambda x: x >= min_genes)
-    mu.pp.filter_obs(filtered["rna"], "outlier", lambda x: ~x)
-
-    match doublet_algorithm:
-        case DoubletFilter.scrublet:
-            logger.info("Running Scrublet")
-            sc.pp.scrublet(filtered["rna"])
-            mu.pp.filter_obs(filtered["rna"], "predicted_doublet", lambda x: ~x)
-        case DoubletFilter.vaeda:
-            logger.info("Running vaeda")
-            adata = vaeda.vaeda(filtered["rna"].copy(), seed=20150318)
-            filtered["rna"].obs = filtered["rna"].obs.join(adata.obs[["vaeda_scores", "vaeda_calls"]], how="left")
-            mu.pp.filter_obs(filtered["rna"], "vaeda_calls", lambda x: x == "singlet")
-
-    mu.pp.intersect_obs(filtered)
-    logger.info("finding isotype controls")
-    isotype_controls = raw.mod["prot"].var.index[raw.mod["prot"].var.index.str.match("Isotype")]
-
-    if remove_isotype_outliers:
-        isotype_idx = {_: filtered["prot"].var_names.tolist().index(_) for _ in isotype_controls}
-        for _ in isotype_idx:
-            if issparse(filtered["prot"].X):
-                filtered["prot"].obs[f"{_} percentile"] = value_quantile(
-                    filtered["prot"].X.toarray()[:, isotype_idx[_]]
-                )
-            else:
-                filtered["prot"].obs[f"{_} percentile"] = value_quantile(filtered["prot"].X[:, isotype_idx[_]])
-
-        mu.pp.intersect_obs(filtered)
-        for _ in isotype_idx:
-            # do this twice because if it is all in the same loop, the quantile
-            # calculations are affected by the removal of the first noisy samples
-            mu.pp.filter_obs(
-                filtered,
-                f"prot:{_} percentile",
-                lambda x: x < max_isotype_counts_quantile * 100,
-            )
-
-    filtered["prot"].layers["counts"] = filtered["prot"].X.copy()
-    if raw is not None:
-        logger.info("running dsb")
-        pt.pp.dsb(
-            data=filtered,
-            data_raw=raw,
-            isotype_controls=isotype_controls,
-            add_layer=False,
-        )
-
-    logger.info("Normalizing")
-    sc.pp.normalize_total(adata=filtered["rna"], target_sum=1e4)
-
-    logger.info("Log-transforming")
-    sc.pp.log1p(filtered["rna"])
-
-    logger.info("Finding variable genes")
-    sc.pp.highly_variable_genes(filtered["rna"], min_mean=0.0125, max_mean=3, min_disp=0.5)
-
-    filtered["rna"].raw = filtered["rna"]
-
-    logger.info("Scaling data")
-    sc.pp.scale(filtered["rna"], max_value=10)
 
 
 def neighbors(
