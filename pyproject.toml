@@ -1,6 +1,6 @@
 [project]
 name = "scorphan"
-version = "0.5.0"
+version = "0.5.1"
 description = "Collection of orphan helper fuctions for single cell omics data analysis"
 authors = [
     {name = "Miles Smith", email = "miles-smith@omrf.org"},

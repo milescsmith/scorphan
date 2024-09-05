@@ -1,5 +1,11 @@
 # scorphan
 
+## [0.5.1] - 2024/09/05
+
+### Changed
+
+- Renamed `so.ut.percentile_trim_rows` to `so.ut.percentile_trim_cols` since... that is what it does.
+
 ## [0.5.0] - 2024/09/04
 
 ### Changed
@@ -38,6 +44,10 @@
 
 - Created module
 
+[0.3.0]: https://github.com/milescsmith/scorphan/releases/compare/0.5.0..0.5.1
+[0.3.0]: https://github.com/milescsmith/scorphan/releases/compare/0.4.1..0.5.0
+[0.3.0]: https://github.com/milescsmith/scorphan/releases/compare/0.4.0..0.4.1
+[0.3.0]: https://github.com/milescsmith/scorphan/releases/compare/0.3.0..0.4.0
 [0.3.0]: https://github.com/milescsmith/scorphan/releases/compare/0.2.0..0.3.0
 [0.2.0]: https://github.com/milescsmith/scorphan/releases/compare/0.1.0..0.2.0
 [0.1.0]: https://github.com/milescsmith/scorphan/releases/tag/v0.0.1

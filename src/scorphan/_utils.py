@@ -51,7 +51,7 @@ def above_below(x: float, lower: float, upper: float) -> float:
 
 
 @guvectorize([(float64[:, :], float64, float64, float64[:, :])], "(m,n),(),()->(m,n)")
-def percentile_trim_rows(
+def percentile_trim_cols(
     arr: npt.ArrayLike, lower: float = 0.10, upper: float = 0.99, res: npt.ArrayLike = None
 ) -> npt.ArrayLike:
     """
