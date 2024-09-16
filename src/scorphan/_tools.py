@@ -1,5 +1,6 @@
 import re
-from copy import deepcopy
+
+# from copy import deepcopy
 from pathlib import Path
 from typing import Final, Literal
 
@@ -13,10 +14,12 @@ from anndata import AnnData
 from loguru import logger
 from matplotlib import colormaps
 from rich.progress import Progress
-from scanpy.tools._utils import _choose_representation
+
+# from scanpy.tools._utils import _choose_representation
 from scipy.sparse import issparse
 
 from scorphan._utils import is_integer_array
+from scorphan.logging import init_logger
 
 MAX_PVAL: Final[float] = 0.05
 
@@ -38,77 +41,113 @@ def muon_paga_umap(
     method: Literal["umap", "rapids"] = "umap",
     neighbors_key: str = "neighbors",
 ) -> None:
-    neighbors = mdata.uns[neighbors_key]
-    reps = {}
-    nfeatures = 0
-    nparams = neighbors["params"]
-    use_rep = {k: (v if v != -1 else None) for k, v in nparams["use_rep"].items()}
-    n_pcs = {k: (v if v != -1 else None) for k, v in nparams["n_pcs"].items()}
-    observations = mdata.obs.index
+    msg = "This function does not currently work and is disabled for the time being."
+    logger.error(msg)
+    raise RuntimeError(msg)
+    # neighbors = mdata.uns[neighbors_key]
+    # reps = {}
+    # nfeatures = 0
+    # nparams = neighbors["params"]
+    # use_rep = {k: (v if v != -1 else None) for k, v in nparams["use_rep"].items()}
+    # n_pcs = {k: (v if v != -1 else None) for k, v in nparams["n_pcs"].items()}
+    # observations = mdata.obs.index
 
-    for mod, rep in use_rep.items():
-        nfeatures += rep.shape[1]
-        reps[mod] = _choose_representation(mdata.mod[mod], rep, n_pcs[mod])
+    # for mod, rep in use_rep.items():
+    #     nfeatures += rep.shape[1]
+    #     reps[mod] = _choose_representation(mdata.mod[mod], rep, n_pcs[mod])
 
-    rep = np.empty((len(observations), nfeatures), np.float32)
-    nfeatures = 0
+    # rep = np.empty((len(observations), nfeatures), np.float32)
+    # nfeatures = 0
 
-    for mod, crep in reps.items():
-        cnfeatures = nfeatures + crep.shape[1]
-        idx = observations.isin(mdata.mod[mod].obs.index)
-        rep[idx, nfeatures:cnfeatures] = crep.toarray() if issparse(crep) else crep
-        if np.sum(idx) < rep.shape[0]:
-            imputed = crep.mean(axis=0)
-            if issparse(crep):
-                imputed = np.asarray(imputed).squeeze()
-            rep[~idx, nfeatures : crep.shape[1]] = imputed
-        nfeatures = cnfeatures
+    # for mod, crep in reps.items():
+    #     cnfeatures = nfeatures + crep.shape[1]
+    #     idx = observations.isin(mdata.mod[mod].obs.index)
+    #     rep[idx, nfeatures:cnfeatures] = crep.toarray() if issparse(crep) else crep
+    #     if np.sum(idx) < rep.shape[0]:
+    #         imputed = crep.mean(axis=0)
+    #         if issparse(crep):
+    #             imputed = np.asarray(imputed).squeeze()
+    #         rep[~idx, nfeatures : crep.shape[1]] = imputed
+    #     nfeatures = cnfeatures
 
-    adata = AnnData(X=rep, obs=mdata.obs)
+    # adata = AnnData(X=rep, obs=mdata.obs)
 
-    adata.uns[neighbors_key] = deepcopy(neighbors)
-    adata.uns[neighbors_key]["params"]["use_rep"] = "X"
-    del adata.uns[neighbors_key]["params"]["n_pcs"]
-    adata.obsp[neighbors["connectivities_key"]] = mdata.obsp[neighbors["connectivities_key"]]
-    adata.obsp[neighbors["distances_key"]] = mdata.obsp[neighbors["distances_key"]]
+    # adata.uns[neighbors_key] = deepcopy(neighbors)
+    # adata.uns[neighbors_key]["params"]["use_rep"] = "X"
+    # del adata.uns[neighbors_key]["params"]["n_pcs"]
+    # adata.obsp[neighbors["connectivities_key"]] = mdata.obsp[neighbors["connectivities_key"]]
+    # adata.obsp[neighbors["distances_key"]] = mdata.obsp[neighbors["distances_key"]]
 
-    adata.uns["paga"] = mdata.uns["paga"].copy()
+    # adata.uns["paga"] = mdata.uns["paga"].copy()
 
-    sc.tl.umap(
-        adata=adata,
-        min_dist=min_dist,
-        spread=spread,
-        n_components=n_components,
-        maxiter=maxiter,
-        alpha=alpha,
-        gamma=gamma,
-        negative_sample_rate=negative_sample_rate,
-        init_pos=init_pos,
-        random_state=random_state,
-        a=a,
-        b=b,
-        copy=False,
-        method=method,
-        neighbors_key=neighbors_key,
-    )
+    # sc.tl.umap(
+    #     adata=adata,
+    #     min_dist=min_dist,
+    #     spread=spread,
+    #     n_components=n_components,
+    #     maxiter=maxiter,
+    #     alpha=alpha,
+    #     gamma=gamma,
+    #     negative_sample_rate=negative_sample_rate,
+    #     init_pos=init_pos,
+    #     random_state=random_state,
+    #     a=a,
+    #     b=b,
+    #     copy=False,
+    #     method=method,
+    #     neighbors_key=neighbors_key,
+    # )
 
-    mdata.obsm["X_umap"] = adata.obsm["X_umap"]
-    mdata.uns["umap"] = adata.uns["umap"]
+    # mdata.obsm["X_umap"] = adata.obsm["X_umap"]
+    # mdata.uns["umap"] = adata.uns["umap"]
 
 
 def GSEApy_process(
     adata: AnnData,
+    groupby: str | None = None,
+    comparison_group: str | None = None,
+    reference_group: str | None = None,
     obs_subset: pd.Series | pd.Index | list[str] | None = None,
     var_subset: pd.Series | pd.Index | list[str] | None = None,
     top_x_pathways: int = 5,
     top_pathway_type: Literal["heatmap", "dotplot"] = "dotplot",
-    groupby: str | None = None,
-    referencegroup: str | None = None,
     geneset: str | Path | None = None,
-    wanted_group: str | None = None,
     outdir_path: Path | None = None,
+    verbose: bool = False,
 ):
-    for _ in ["groupby", "referencegroup", "wanted_group"]:
+    """_summary_
+
+    Parameters
+    ----------
+    adata : AnnData
+        Object containing scRNAseq data to perform analysis on
+    groupby : str | None, optional
+        Column in adata.obs to use for grouping cells, by default None
+    comparison_group : str | None, optional
+        Factor in adata.obs[groupby] to generate the analysis for. For example, the disease group of interest., by default None
+    reference_group : str | None, optional
+        Factor in adata.obs[groupby] to set as the basis of comparison, such as the control group, by default None
+    obs_subset : pd.Series | pd.Index | list[str] | None, optional
+        Names from adata.obs_names (i.e. cell barcodes) to use to subset the data, by default None
+    var_subset : pd.Series | pd.Index | list[str] | None, optional
+        Names from adata.var_names (i.e. gene or protein names) to use to subset the data, by default None
+    top_x_pathways : int, optional
+        Number of pathways to generate plots for, by default 5
+    top_pathway_type : Literal["heatmap", "dotplot"], optional
+        Type of plots to generate, by default "dotplot"
+    geneset : str | Path | None, optional
+        Gene set list to test for. Can either be the name of a pathway or the path to a gene matrix transposed (*.gmt)
+        file, by default None, which results in using "GO_Biological_Process_2023", "GO_Cellular_Component_2023", and
+        "GO_Molecular_Function_2023"
+    outdir_path : Path | None, optional
+        Location to write output plots and spreadsheets to, by default None
+    verbose : bool, optional
+        More or less feedback, by default False
+
+    """
+    if verbose:
+        init_logger(3)
+    for _ in ["groupby", "reference_group", "comparison_group"]:
         if _ is None:
             msg = f"A value for {_} was not given"
             raise SyntaxError(msg)
@@ -157,9 +196,10 @@ def GSEApy_process(
         outdir=str(outdir_path.joinpath("GSEA_results")),
         method="s2n",  # signal_to_noise
         threads=16,
+        verbose=True,
     )
-    gs.pheno_pos = wanted_group
-    gs.pheno_neg = referencegroup
+    gs.pheno_pos = comparison_group
+    gs.pheno_neg = reference_group
     gs.run()
 
     # both sc.pl.heatmap and sc.pl.dotplot let you group variables *IF* you supply the var_names as a dict[str, list[str]]
@@ -184,7 +224,7 @@ def GSEApy_process(
                         adata=adata,
                         var_names=term_gene_dict[i],
                         standard_scale="var",
-                        groupby="disease_class",
+                        groupby=groupby,
                         # figsize=(9,5), # I don't like this. Replace with user-defined? Return values packaged so that one could rapidly recreate?
                         show=False,
                         ax=ax,
@@ -195,7 +235,7 @@ def GSEApy_process(
                         adata=adata,
                         var_names=term_gene_dict[i],
                         standard_scale="var",
-                        groupby="disease_class",
+                        groupby=groupby,
                         # figsize=(9,5),
                         show=False,
                         # save=str(outdir_path.joinpath(f"{i}_Heatmap.png"))
@@ -210,11 +250,11 @@ def GSEApy_process(
         gs.plot(terms=term[:top_x_pathways], ofname=str(outdir_path.joinpath("GSEA_results", "Top_GSEA_Terms.png")))
 
     #### DEG analysis
-    if ("rank_genes_groups" not in adata.uns) and (adata.uns["rank_genes_groups"]["params"]["groupby"] != groupby):
+    if ("rank_genes_groups" not in adata.uns) or (adata.uns["rank_genes_groups"]["params"]["groupby"] != groupby):
         logger.info("Performing DEG analysis")
-        sc.tl.rank_genes_groups(adata, groupby=groupby, reference=referencegroup, layer="lognorm", use_raw=False)
+        sc.tl.rank_genes_groups(adata, groupby=groupby, reference=reference_group, layer="lognorm", use_raw=False)
     # sc.pl.rank_genes_groups(adata, n_genes=25, sharey=False)
-    degs = sc.get.rank_genes_groups_df(adata, group=wanted_group)
+    degs = sc.get.rank_genes_groups_df(adata, group=comparison_group)
     if np.all(degs["logfoldchanges"].isnull()):  # should this maybe be changed to np.any?
         msg = "There is something wrong with the data. All log fold changes are reported as NAs"
         logger.error(msg)
@@ -225,7 +265,7 @@ def GSEApy_process(
 
     #### Enrichment
     if degs_up.shape[0] > 0:
-        logger.info(f"Performing Enrichr analysis of upregulated in {wanted_group} genes")
+        logger.info(f"Performing Enrichr analysis of upregulated in {comparison_group} genes")
         enr_up = gp.enrichr(degs_up["names"], gene_sets=geneset, outdir=str(outdir_path.joinpath("Enrichr_results")))
         enr_up.res2d.Term = enr_up.res2d.Term.str.replace(pat=r"\s\(GO:[0-9]+\)", repl="", regex=True)
         try:
@@ -235,11 +275,11 @@ def GSEApy_process(
         except ValueError:
             logger.error("No enrich terms at current cutoff")
     else:
-        logger.info(f"No significant upregulated in {wanted_group} genes were found")
+        logger.info(f"No significant upregulated in {comparison_group} genes were found")
         enr_up = gp.Enrichr(gene_list=[], gene_sets=geneset)  # make an empty object to prevent errors downstream
 
     if degs_up.shape[0] > 0:
-        logger.info(f"Performing Enrichr analysis of downregulated in {wanted_group} genes")
+        logger.info(f"Performing Enrichr analysis of downregulated in {comparison_group} genes")
         enr_down = gp.enrichr(
             degs_down["names"], gene_sets=geneset, outdir=str(outdir_path.joinpath("Enrichr_results"))
         )
@@ -257,7 +297,7 @@ def GSEApy_process(
         except ValueError:
             logger.error("No enrich terms at current cutoff")
     else:
-        logger.info(f"No significant downregulated in {wanted_group} genes were found")
+        logger.info(f"No significant downregulated in {comparison_group} genes were found")
         enr_down = gp.Enrichr(gene_list=[], gene_sets=geneset)  # make an empty object to prevent errors downstream
 
     enr_up.res2d["UP_DW"] = "UP"

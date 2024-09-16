@@ -1,5 +1,19 @@
 # scorphan
 
+## [0.6.0] - 2024/09/16
+
+### Added
+
+- Docstring to `so.tl.GSEApy_process`
+
+### Changed
+
+- Temporarily disabled `so.tl.muon_paga_umap` since it doesn't currently function correctly
+
+### Fixed
+
+- Minor fixes to `so.tl.GSEApy_process` to get it to work
+
 ## [0.5.1] - 2024/09/05
 
 ### Changed
@@ -44,10 +58,11 @@
 
 - Created module
 
-[0.3.0]: https://github.com/milescsmith/scorphan/releases/compare/0.5.0..0.5.1
-[0.3.0]: https://github.com/milescsmith/scorphan/releases/compare/0.4.1..0.5.0
-[0.3.0]: https://github.com/milescsmith/scorphan/releases/compare/0.4.0..0.4.1
-[0.3.0]: https://github.com/milescsmith/scorphan/releases/compare/0.3.0..0.4.0
+[0.6.0]: https://github.com/milescsmith/scorphan/releases/compare/0.5.1..0.6.0
+[0.5.1]: https://github.com/milescsmith/scorphan/releases/compare/0.5.0..0.5.1
+[0.5.0]: https://github.com/milescsmith/scorphan/releases/compare/0.4.1..0.5.0
+[0.4.1]: https://github.com/milescsmith/scorphan/releases/compare/0.4.0..0.4.1
+[0.4.0]: https://github.com/milescsmith/scorphan/releases/compare/0.3.0..0.4.0
 [0.3.0]: https://github.com/milescsmith/scorphan/releases/compare/0.2.0..0.3.0
 [0.2.0]: https://github.com/milescsmith/scorphan/releases/compare/0.1.0..0.2.0
 [0.1.0]: https://github.com/milescsmith/scorphan/releases/tag/v0.0.1
