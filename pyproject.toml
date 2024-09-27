@@ -1,6 +1,6 @@
 [project]
 name = "scorphan"
-version = "0.6.0"
+version = "0.6.1"
 description = "Collection of orphan helper fuctions for single cell omics data analysis"
 authors = [
     {name = "Miles Smith", email = "miles-smith@omrf.org"},
@@ -8,7 +8,6 @@ authors = [
 dependencies = [
     "numpy>=1.26.4",
     "scipy>=1.14.0",
-    "umap>=0.1.1",
     "mudata>=0.3.0",
     "muon>=0.1.6",
     "scanpy>=1.10.2",
@@ -21,6 +20,7 @@ dependencies = [
     "networkx>=3.3",
     "rich>=13.7.1",
     "more-itertools>=10.4.0",
+    "umap-learn>=0.5.6",
 ]
 requires-python = ">=3.11"
 readme = "README.md"
