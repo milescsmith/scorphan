@@ -1,5 +1,11 @@
 # scorphan
 
+## [0.7.0] - 2025/01/10
+
+### Added
+
+- `so.ut.percentile_trim_rows`
+
 ## [0.6.0] - 2024/09/16
 
 ### Added
