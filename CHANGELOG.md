@@ -1,5 +1,11 @@
 # scorphan
 
+## [0.7.0] - 2025/01/21
+
+### Changed
+
+- Updated dependencies
+
 ## [0.6.0] - 2024/09/16
 
 ### Added
