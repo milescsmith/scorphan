@@ -64,6 +64,23 @@ def percentile_trim_cols(
         res[:, i] = above_below(arr[:, i], lower_bounds, upper_bounds)
 
 
+@guvectorize([(float64[:, :], float64, float64, float64[:, :])], "(m,n),(),()->(m,n)")
+def percentile_trim_rows(
+    arr: npt.NDArray, lower: float = 0.10, upper: float = 0.99, res: npt.NDArray = None
+) -> npt.NDArray:
+    """
+    Row-by-row, calculate the lower and upper percentiles and then use those to replace values that are
+    below or above them, respectively
+
+    NOTE: even though there are defaults listed here, they DO NOT WORK
+    I don't yet know why numba ignores them.
+    """
+    for i in range(arr.shape[1]):
+        lower_bounds = np.quantile(arr[:, i], lower)
+        upper_bounds = np.quantile(arr[:, i], upper)
+        res[:, i] = above_below(arr[:, i], lower_bounds, upper_bounds)
+
+
 # stolen from https://www.sc-best-practices.org/preprocessing_visualization/quality_control.html#filtering-low-quality-cells
 def is_outlier(adata, metric: str, nmads: int):
     met = adata.obs[metric]
