@@ -21,7 +21,7 @@ def is_integer_array(arr) -> bool:
         return not (np.mod(arr, 1) != 0).any()
 
 
-def value_quantile(arr: np.ndarray) -> np.ndarray:
+def value_percentile(arr: np.ndarray) -> np.ndarray:
     # hacky way to loop over the array of counts and calculate each's quantile.
     # not sure why percentileofscore isn't already vectorized
     # and we have to use partial here because percentileofscore's function
