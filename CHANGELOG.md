@@ -1,10 +1,10 @@
 # scorphan
 
-## [0.9.0] - 2025-01-22
+## [0.8.1] - 2025-06-20
 
 ### Changed
 
-- Rename `so.ut.value_qualtile` to `so.ut.value_percentile` to more accurately reflect what it is vectorizing
+- Decrease required library versions
 
 ## [0.8.0] - 2025/01/21
 
