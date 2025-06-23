@@ -1,4 +1,5 @@
 import re
+from collections.abc import Sequence
 
 # from copy import deepcopy
 from pathlib import Path
@@ -13,13 +14,14 @@ import scanpy as sc
 from anndata import AnnData
 from loguru import logger
 from matplotlib import colormaps
+from mudata import MuData
 from rich.progress import Progress
 
 # from scanpy.tools._utils import _choose_representation
 from scipy.sparse import issparse
 
 from scorphan._utils import is_integer_array
-from scorphan.logging import init_logger
+from scorphan.logger import init_logger
 
 MAX_PVAL: Final[float] = 0.05
 
@@ -104,14 +106,14 @@ def muon_paga_umap(
 
 def GSEApy_process(
     adata: AnnData,
-    groupby: str | None = None,
+    groupby: str | Sequence[str] | None = None,
     comparison_group: str | None = None,
     reference_group: str | None = None,
     obs_subset: pd.Series | pd.Index | list[str] | None = None,
     var_subset: pd.Series | pd.Index | list[str] | None = None,
     top_x_pathways: int = 5,
     top_pathway_type: Literal["heatmap", "dotplot"] = "dotplot",
-    geneset: str | Path | None = None,
+    geneset: str | list[str] | Path | None = None,
     outdir_path: Path | None = None,
     verbose: bool = False,
 ):
@@ -213,7 +215,7 @@ def GSEApy_process(
     with Progress() as progress:
         task = progress.add_task(description="Creating GSEA pathway plots for", total=top_x_pathways)
         progress.start()
-        for i in term_gene_dict:
+        for i in term_gene_dict.items():
             # term_name = re.sub(pattern=r"\s\(GO:[0-9]+\)", repl="", string=gs.res2d.Term.iloc[i])
             progress.update(task, description=f"Creating GSEA pathway plots for {i}")
             logger.info(f"generating plots for {i}")
@@ -360,3 +362,169 @@ def GSEApy_process(
     fig1.savefig(str(outdir_path.joinpath("GSEA_results", "Network.png")), bbox_inches="tight")
     nodes.to_csv(str(outdir_path.joinpath("GSEA_results", "Nodes.csv")))
     edges.to_csv(str(outdir_path.joinpath("GSEA_results", "Edges.csv")))
+
+
+def umap(
+    mdata: MuData,
+    min_dist: float = 0.5,
+    spread: float = 1.0,
+    n_components: int = 2,
+    maxiter: int | None = None,
+    alpha: float = 1.0,
+    gamma: float = 1.0,
+    negative_sample_rate: int = 5,
+    init_pos: Literal["spectral", "random"] | np.ndarray | None = "spectral",
+    random_state: int | np.random.RandomState | None = 42,
+    a: float | None = None,
+    b: float | None = None,
+    copy: bool = False,
+    method: Literal["umap", "rapids"] = "umap",
+    neighbors_key: str | None = None,
+) -> MuData | None:
+    """
+    Embed the multimodal neighborhood graph using UMAP (McInnes et al, 2018).
+
+    UMAP (Uniform Manifold Approximation and Projection) is a manifold learning
+    technique suitable for visualizing high-dimensional data. We use ScanPy's
+    implementation.
+
+    References:
+        McInnes et al, 2018 (`arXiv:1802.03426` <https://arxiv.org/abs/1802.03426>`_)
+
+    Args:
+        mdata: MuData object. Multimodal nearest neighbor search must have already
+            been performed.
+        min_dist: The effective minimum distance between embedded points. Smaller
+            values will result in a more clustered/clumped embedding where nearby points
+            on the manifold are drawn closer together, while larger values will result
+            on a more even dispersal of points. The value should be set relative to
+            the ``spread`` value, which determines the scale at which embedded points
+            will be spread out. The default of in the ``umap-learn`` package is 0.1.
+        spread: The effective scale of embedded points. In combination with ``min_dist``
+            this determines how clustered/clumped the embedded points are.
+        n_components: The number of dimensions of the embedding.
+        maxiter: The number of iterations (epochs) of the optimization. Called ``n_epochs``
+            in the original UMAP.
+        alpha: The initial learning rate for the embedding optimization.
+        gamma: Weighting applied to negative samples in low dimensional embedding
+            optimization. Values higher than one will result in greater weight
+            being given to negative samples.
+        negative_sample_rate: The number of negative edge/1-simplex samples to use per
+            positive edge/1-simplex sample in optimizing the low dimensional embedding.
+        init_pos: How to initialize the low dimensional embedding. Called ``init`` in the
+            original UMAP. Options are:
+            - 'spectral': use a spectral embedding of the graph.
+            - 'random': assign initial embedding positions at random.
+            - A numpy array of initial embedding positions.
+        random_state: Random seed.
+        a: More specific parameters controlling the embedding. If ``None`` these
+            values are set automatically as determined by ``min_dist`` and
+            ``spread``.
+        b: More specific parameters controlling the embedding. If ``None`` these
+            values are set automatically as determined by ``min_dist`` and
+            ``spread``.
+        copy: Return a copy instead of writing to mdata.
+        method: Use the original 'umap' implementation, or 'rapids' (experimental, GPU only)
+        neighbors_key: If not specified, umap looks in ``.uns['neighbors']`` for neighbors
+            settings and ``.obsp['connectivities']`` for connectivities (default storage
+            places for ``pp.neighbors``). If specified, umap looks ``.uns[neighbors_key]``
+            for neighbors settings and ``.obsp[.uns[neighbors_key]['connectivities_key']]``
+            for connectivities.
+    Returns: Depending on ``copy``, returns or updates ``adata`` with the following fields.
+
+        **X_umap** : ``mdata.obsm`` field holding UMAP coordinates of data.
+    """
+    if method == "rapids":
+        try:
+            import rapids_singlecell as usc
+        except ImportError as e:
+            msg = "the rapids_singlecell library is required for the 'rapids' method, but it was not able to be imported. Please install the correct version."
+            raise ImportError(msg) from e
+    else:
+        import scanpy as usc
+
+    if isinstance(mdata, AnnData):
+        return usc.tl.umap(
+            adata=mdata,
+            min_dist=min_dist,
+            spread=spread,
+            n_components=n_components,
+            maxiter=maxiter,
+            alpha=alpha,
+            gamma=gamma,
+            negative_sample_rate=negative_sample_rate,
+            init_pos=init_pos,
+            random_state=random_state,
+            a=a,
+            b=b,
+            copy=copy,
+            neighbors_key=neighbors_key,
+        )
+
+    if neighbors_key is None:
+        neighbors_key = "neighbors"
+
+    try:
+        neighbors = mdata.uns[neighbors_key]
+    except KeyError as e:
+        msg = f'Did not find .uns["{neighbors_key}"]. Run `muon.pp.neighbors` first.'
+        raise ValueError(msg) from e
+
+    from copy import deepcopy
+
+    from scanpy.tools._utils import _choose_representation
+    from scipy.sparse import issparse
+
+    # we need a data matrix. This is used only for initialization and only if init_pos=="spectral"
+    # and the graph has many connected components, so we can do very simple imputation
+    reps = {}
+    nfeatures = 0
+    nparams = neighbors["params"]
+    use_rep = {k: (v if v != -1 else None) for k, v in nparams["use_rep"].items()}
+    n_pcs = {k: (v if v != -1 else None) for k, v in nparams["n_pcs"].items()}
+    observations = mdata.obs.index
+    for mod, rep in use_rep.items():
+        _rep = _choose_representation(adata=mdata.mod[mod], use_rep=rep, n_pcs=n_pcs[mod])
+        nfeatures += _rep.shape[1]
+        reps[mod] = _rep
+    rep = np.empty((len(observations), nfeatures), np.float32)
+    nfeatures = 0
+    for mod, crep in reps.items():
+        cnfeatures = nfeatures + crep.shape[1]
+        idx = observations.isin(mdata.mod[mod].obs.index)
+        rep[idx, nfeatures:cnfeatures] = crep.toarray() if issparse(crep) else crep
+        if np.sum(idx) < rep.shape[0]:
+            imputed = crep.mean(axis=0)
+            if issparse(crep):
+                imputed = np.asarray(imputed).squeeze()
+            rep[~idx, nfeatures : crep.shape[1]] = imputed
+        nfeatures = cnfeatures
+    adata = AnnData(X=rep, obs=mdata.obs)
+    adata.uns[neighbors_key] = deepcopy(neighbors)
+    adata.uns[neighbors_key]["params"]["use_rep"] = "X"
+    del adata.uns[neighbors_key]["params"]["n_pcs"]
+    adata.obsp[neighbors["connectivities_key"]] = mdata.obsp[neighbors["connectivities_key"]]
+    adata.obsp[neighbors["distances_key"]] = mdata.obsp[neighbors["distances_key"]]
+
+    usc.tl.umap(
+        adata=adata,
+        min_dist=min_dist,
+        spread=spread,
+        n_components=n_components,
+        maxiter=maxiter,
+        alpha=alpha,
+        gamma=gamma,
+        negative_sample_rate=negative_sample_rate,
+        init_pos=init_pos,
+        random_state=random_state,
+        a=a,
+        b=b,
+        copy=False,
+        method=method,
+        neighbors_key=neighbors_key,
+    )
+
+    mdata = mdata.copy() if copy else mdata
+    mdata.obsm["X_umap"] = adata.obsm["X_umap"]
+    mdata.uns["umap"] = adata.uns["umap"]
+    return mdata if copy else None

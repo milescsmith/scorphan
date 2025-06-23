@@ -1,5 +1,12 @@
 # scorphan
 
+## [0.9.0] - 2025-06-23
+
+### Fixed
+
+- Repaired so.pp.neighbors
+    - RAPIDS support disabled as it isn't currently working
+
 ## [0.8.1] - 2025-06-20
 
 ### Changed
