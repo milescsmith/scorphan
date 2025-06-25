@@ -1,5 +1,10 @@
 # scorphan
 
+## [0.9.1] - 2025-06-24
+
+### Fixed
+- Added what is probably a dumb method to get around a bug I encountered in so.pp.neighbors where one cannot add the adjacency graphs for two different modalities because of their sparseness
+
 ## [0.9.0] - 2025-06-23
 
 ### Fixed
@@ -83,6 +88,11 @@
 
 - Created module
 
+[0.9.1]: https://github.com/milescsmith/scorphan/releases/compare/0.9.0..0.9.1
+[0.9.0]: https://github.com/milescsmith/scorphan/releases/compare/0.8.1..0.9.0
+[0.8.1]: https://github.com/milescsmith/scorphan/releases/compare/0.8.0..0.8.1
+[0.8.0]: https://github.com/milescsmith/scorphan/releases/compare/0.7.0..0.8.0
+[0.7.0]: https://github.com/milescsmith/scorphan/releases/compare/0.6.0..0.7.0
 [0.6.0]: https://github.com/milescsmith/scorphan/releases/compare/0.5.1..0.6.0
 [0.5.1]: https://github.com/milescsmith/scorphan/releases/compare/0.5.0..0.5.1
 [0.5.0]: https://github.com/milescsmith/scorphan/releases/compare/0.4.1..0.5.0

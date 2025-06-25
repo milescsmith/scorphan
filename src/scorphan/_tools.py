@@ -21,7 +21,7 @@ from rich.progress import Progress
 from scipy.sparse import issparse
 
 from scorphan._utils import is_integer_array
-from scorphan.logger import init_logger
+from scorphan.log import init_logger
 
 MAX_PVAL: Final[float] = 0.05
 

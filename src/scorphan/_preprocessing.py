@@ -12,7 +12,7 @@ from muon._core.preproc import (
     _jaccard_sparse_euclidean_metric,
     _make_slice_intervals,
     _sparse_csr_fast_knn,
-    _sparse_csr_ptp,
+    # _sparse_csr_ptp,
     filter_obs,
 )
 from scanpy.tools._utils import _choose_representation
@@ -26,7 +26,7 @@ from scipy.spatial.distance import cdist
 from scipy.special import softmax
 
 from scorphan._utils import value_percentile
-from scorphan.logger import init_logger
+from scorphan.log import init_logger
 
 LARGE_NUMBER_OF_OBSERVATIONS: Final[int] = 50000
 LOW_MEMORY_SPARSE_SPLITS: Final[int] = 10000
@@ -214,7 +214,8 @@ def neighbors(
         # of the bounding box of the data. This can be computed in linear time by just taking
         # the minimal and maximal coordinates of each dimension.
         num_obs = X.shape[0]
-        bbox_norm = np.linalg.norm(_sparse_csr_ptp(X) if issparse(X) else np.ptp(X, axis=0), ord=2)
+        # bbox_norm = np.linalg.norm(_sparse_csr_ptp(X) if issparse(X) else np.ptp(X, axis=0), ord=2)
+        bbox_norm = np.linalg.norm(np.ptp(X, axis=0), ord=2)
         lmemory = low_memory if low_memory is not None else num_obs > LARGE_NUMBER_OF_OBSERVATIONS
         if issparse(X):
             X = X.tocsr()  # noqa: N806
@@ -337,11 +338,11 @@ def neighbors(
 
     neighbordistances = csr_array((mdata.n_obs, mdata.n_obs), dtype=np.float64)
     # neighbordistances = np.empty((mdata.n_obs, mdata.n_obs), dtype=np.int64)
-    largeidx = mdata.n_obs**2 > np.iinfo(np.int32).max
-    if largeidx:  # work around scipy bug https://github.com/scipy/scipy/issues/13155
-        neighbordistances.indptr = neighbordistances.indptr.astype(np.int64)
-        neighbordistances.indices = neighbordistances.indices.astype(np.int64)
-    for _, m in enumerate(modalities):
+    # largeidx = mdata.n_obs**2 > np.iinfo(np.int32).max
+    # if largeidx:  # work around scipy bug https://github.com/scipy/scipy/issues/13155
+    #     neighbordistances.indptr = neighbordistances.indptr.astype(np.int64)
+    #     neighbordistances.indices = neighbordistances.indices.astype(np.int64)
+    for m in modalities:
         cmetric = neighbors_params[m].get("metric", "euclidean")
         observations1 = observations.intersection(mdata.mod[m].obs.index)
 
@@ -370,11 +371,6 @@ def neighbors(
             nn_indices = nn_indices.get()
             logger.debug("Getting distances...")
             distances = distances.get()
-            # return {
-            #     "distances": distances,
-            #     "nn_indices": nn_indices,
-            #     "n_multineighbors": n_multineighbors,
-            # }
         elif method == "umap":
             logger.debug(f"Using umap nearest_neighbors on '{m}' modality...")
             nn_indices, distances, _ = nearest_neighbors(
@@ -386,11 +382,6 @@ def neighbors(
                 angular=False,
                 low_memory=lmemory,
             )
-            # return {
-            #     "distances": distances,
-            #     "nn_indices": nn_indices,
-            #     "n_multineighbors": n_multineighbors,
-            # }
 
         logger.debug("Creating a sparse matrix from the neighbors calculations")
         graph = csr_array(
@@ -400,7 +391,7 @@ def neighbors(
                 np.concatenate((nn_indices[:, 0] * n_multineighbors, (nn_indices[:, 1:].size,))),
             ),
             shape=(rep.shape[0], rep.shape[0]),
-        )
+        ).tocoo
         with warnings.catch_warnings():
             # CSR is faster here than LIL, no matter what SciPy says
             warnings.simplefilter("ignore", category=SparseEfficiencyWarning)
@@ -414,14 +405,13 @@ def neighbors(
                     # logger.debug(f"neighbordistances dims: {neighbordistances.shape}, type: {type(neighbordistances)}")
                     # logger.debug(f"graph dims: {graph.shape}, type: {type(graph)}")
                     # return neighbordistances, graph
-                    neighbordistances += graph
+                    neighbordistances = neighbordistances.tocoo() + graph.tocoo()
+                    if isinstance(neighbordistances, coo_array):
+                        neighbordistances = neighbordistances.to_csr()
 
             # the naive version of neighbordistances[idx[:, np.newaxis], idx[np.newaxis, :]] += graph
             else:
                 # uses way too much memory
-                if largeidx:
-                    graph.indptr = graph.indptr.astype(np.int64)
-                    graph.indices = graph.indices.astype(np.int64)
                 fullstarts, fullstops = _make_slice_intervals(
                     np.where(observations.isin(observations1))[0], sparse_matrix_assign_splits
                 )
