@@ -2,6 +2,7 @@ import numbers
 import warnings
 from typing import Final, Literal
 
+import anndata as ad
 import numpy as np
 import numpy.typing as npt
 from loguru import logger
@@ -11,28 +12,37 @@ from muon._core.preproc import (
     _jaccard_sparse_euclidean_metric,
     _make_slice_intervals,
     _sparse_csr_fast_knn,
-    _sparse_csr_ptp,
+    # _sparse_csr_ptp,
+    filter_obs,
 )
-from scanpy import logging
-from scanpy.neighbors._connectivity import umap as _compute_connectivities_umap
 from scanpy.tools._utils import _choose_representation
 from scipy.sparse import (
     SparseEfficiencyWarning,
-    csr_matrix,
+    coo_array,
+    csr_array,
     issparse,
 )
 from scipy.spatial.distance import cdist
 from scipy.special import softmax
-from umap.umap_ import nearest_neighbors
+
+from scorphan._utils import value_percentile
+from scorphan.log import init_logger
 
 LARGE_NUMBER_OF_OBSERVATIONS: Final[int] = 50000
 LOW_MEMORY_SPARSE_SPLITS: Final[int] = 10000
 LARGE_MEMORY_SPARSE_SPLITS: Final[int] = 30000
 
 
+def neighdist(rep, cell, nz, metric):
+    if issparse(rep):
+        return -cdist(rep[cell, :].toarray(), rep[nz, :].toarray(), metric=metric)
+    else:
+        return -cdist(rep[np.newaxis, cell, :], rep[nz, :], metric=metric)
+
+
 def neighbors(
     mdata: MuData,
-    modality_weights: dict[str, int] | None = None,
+    modality_weights: dict[str, float] | None = None,
     manual_weights: dict[str, npt.ArrayLike] | None = None,
     n_neighbors: int | None = None,
     n_bandwidth_neighbors: int = 20,
@@ -68,8 +78,10 @@ def neighbors(
     weight_key: str = "mod_weight",
     add_weights_to_modalities: bool = False,
     eps: float = 1e-4,
+    method: Literal["umap", "rapids"] = "umap",
     copy: bool = False,
     random_state: int | np.random.RandomState | None = 42,
+    verbose: bool = False,
 ) -> MuData | None:
     """
     Multimodal nearest neighbor search.
@@ -109,12 +121,21 @@ def neighbors(
         add_weights_to_modalities: If to add weights to individual modalities. By default, it is ``False``
             and the weights will be added to ``mdata.obs``.
         eps: Small number to avoid numerical errors.
+        method: library to use when calculating simplical sets. Ether "umap" for the normal method derived by ``scanpy`` or
+            "rapids" for a GPU-accelerated version from ``rapids_singlecell``. Requires ``rapids_singlecell`` to be installed.
         copy: Return a copy instead of writing to ``mdata``.
         random_state: Random seed.
 
     Returns: Depending on ``copy``, returns or updates ``mdata``. Cell-modality weights will be stored in
         ``.obs["modality_weight"]`` separately for each modality.
     """
+    if method == "rapids":
+        msg = "Sorry, GPU support is still a work in progress."
+        raise NotImplementedError(msg)
+    if verbose:
+        init_logger(verbose=3)
+    else:
+        init_logger(verbose=2)
     randomstate = np.random.RandomState(random_state)
     mdata = mdata.copy() if copy else mdata
     if neighbor_keys is None:
@@ -126,7 +147,7 @@ def neighbors(
     reps = {}
     observations = mdata.obs.index
 
-    if low_memory or low_memory is None and observations.size > LARGE_NUMBER_OF_OBSERVATIONS:
+    if low_memory or (low_memory is None and observations.size > LARGE_NUMBER_OF_OBSERVATIONS):
         sparse_matrix_assign_splits = LOW_MEMORY_SPARSE_SPLITS
     else:
         sparse_matrix_assign_splits = LARGE_MEMORY_SPARSE_SPLITS
@@ -147,7 +168,7 @@ def neighbors(
         mod_neighbors[i] = nparams["params"].get("n_neighbors", 0)
 
         neighbors_params[mod] = nparams
-        reps[mod] = _choose_representation(mdata.mod[mod], use_rep, n_pcs)
+        reps[mod] = _choose_representation(adata=mdata.mod[mod], use_rep=use_rep, n_pcs=n_pcs)
         mod_reps[mod] = use_rep if use_rep is not None else -1  # otherwise this is not saved to h5mu
         mod_n_pcs[mod] = n_pcs if n_pcs is not None else -1
 
@@ -193,7 +214,8 @@ def neighbors(
         # of the bounding box of the data. This can be computed in linear time by just taking
         # the minimal and maximal coordinates of each dimension.
         num_obs = X.shape[0]
-        bbox_norm = np.linalg.norm(_sparse_csr_ptp(X) if issparse(X) else np.ptp(X, axis=0), ord=2)
+        # bbox_norm = np.linalg.norm(_sparse_csr_ptp(X) if issparse(X) else np.ptp(X, axis=0), ord=2)
+        bbox_norm = np.linalg.norm(np.ptp(X, axis=0), ord=2)
         lmemory = low_memory if low_memory is not None else num_obs > LARGE_NUMBER_OF_OBSERVATIONS
         if issparse(X):
             X = X.tocsr()  # noqa: N806
@@ -219,16 +241,45 @@ def neighbors(
                 "bbox_norm": bbox_norm,
             }
 
-        logging.info(f"Calculating kernel bandwidth for '{mod1}' modality...")
-        nn_indices, _, _ = nearest_neighbors(
-            np.arange(num_obs)[:, np.newaxis],
-            n_neighbors=n_bandwidth_neighbors,
-            metric=cmetric,
-            metric_kwds=metric_kwds,
-            random_state=randomstate,
-            angular=False,
-            low_memory=lmemory,
-        )
+        logger.info(f"Calculating kernel bandwidth for '{mod1}' modality...")
+        if method == "rapids":
+            logger.info(f"Using rapids nearest_neighbors on '{mod1}' modality...")
+            # try:
+            #     from cuml.internals.device_support import (
+            #         GPU_ENABLED,  # I don't know why, but this often fails when cuml tries to do it
+            #     )
+            # except ImportError as exc:
+            #     msg = "Please manually run `from cuml.internals.device_support import GPU_ENABLED`. Sometimes, it just fails."
+            #     raise ImportError(msg) from exc
+            from cuml.neighbors import NearestNeighbors
+
+            x = np.arange(num_obs)[:, np.newaxis]
+            nn = NearestNeighbors(
+                n_neighbors=n_bandwidth_neighbors,
+                algorithm="brute",
+                metric=metric,
+                output_type="cupy",
+                metric_params=metric_kwds,
+            )
+            nn.fit(x)
+            _, nn_indices = nn.kneighbors(
+                X=x,
+                n_neighbors=n_bandwidth_neighbors,
+            )
+            nn_indices = nn_indices.get()
+        elif method == "umap":
+            logger.debug(f"Using umap nearest_neighbors on '{mod1}' modality...")
+            from umap.umap_ import nearest_neighbors
+
+            nn_indices, _, _ = nearest_neighbors(
+                X=np.arange(num_obs)[:, np.newaxis],
+                n_neighbors=n_bandwidth_neighbors,
+                metric=cmetric,
+                metric_kwds=metric_kwds,
+                random_state=randomstate,
+                angular=False,
+                low_memory=lmemory,
+            )
 
         csigmas = np.empty((num_obs,), dtype=neighbordistances.dtype)
         if issparse(X):
@@ -244,7 +295,7 @@ def neighbors(
 
             lasti = 0
 
-            logging.info(f"Calculating cell affinities for '{mod1} modality...")
+            logger.info(f"Calculating cell affinities for '{mod1} modality...")
             for i2, mod2 in enumerate(modalities):
                 nparams2 = neighbors_params[mod2]
                 neighbordistances = mdata.mod[mod2].obsp[nparams2["distances_key"]]
@@ -285,12 +336,13 @@ def neighbors(
     else:
         weights = softmax(ratios, axis=1)
 
-    neighbordistances = csr_matrix((mdata.n_obs, mdata.n_obs), dtype=np.float64)
-    largeidx = mdata.n_obs**2 > np.iinfo(np.int32).max
-    if largeidx:  # work around scipy bug https://github.com/scipy/scipy/issues/13155
-        neighbordistances.indptr = neighbordistances.indptr.astype(np.int64)
-        neighbordistances.indices = neighbordistances.indices.astype(np.int64)
-    for _, m in enumerate(modalities):
+    neighbordistances = csr_array((mdata.n_obs, mdata.n_obs), dtype=np.float64)
+    # neighbordistances = np.empty((mdata.n_obs, mdata.n_obs), dtype=np.int64)
+    # largeidx = mdata.n_obs**2 > np.iinfo(np.int32).max
+    # if largeidx:  # work around scipy bug https://github.com/scipy/scipy/issues/13155
+    #     neighbordistances.indptr = neighbordistances.indptr.astype(np.int64)
+    #     neighbordistances.indices = neighbordistances.indices.astype(np.int64)
+    for m in modalities:
         cmetric = neighbors_params[m].get("metric", "euclidean")
         observations1 = observations.intersection(mdata.mod[m].obs.index)
 
@@ -298,37 +350,68 @@ def neighbors(
         lmemory = low_memory if low_memory is not None else rep.shape[0] > LARGE_NUMBER_OF_OBSERVATIONS
         logger.info(f"Calculating nearest neighbor candidates for '{m}' modality...")
         logger.debug(f"Using low_memory={lmemory} for '{m}' modality")
-        nn_indices, distances, _ = nearest_neighbors(
-            rep,
-            n_neighbors=n_multineighbors + 1,
-            metric=cmetric,
-            metric_kwds={},
-            random_state=randomstate,
-            angular=False,
-            low_memory=lmemory,
-        )
-        graph = csr_matrix(
+
+        if method == "rapids":
+            logger.debug(f"Using rapids nearest_neighbors on '{m}' modality...")
+            nn = NearestNeighbors(
+                n_neighbors=n_bandwidth_neighbors,
+                algorithm="brute",
+                metric=cmetric,
+                output_type="cupy",
+                metric_params=metric_kwds,
+            )
+            logger.debug("Fitting nearest_neighbors...")
+            nn.fit(rep)
+            logger.debug("Calculating distances, nn_indices...")
+            distances, nn_indices = nn.kneighbors(
+                X=rep,
+                n_neighbors=n_bandwidth_neighbors,
+            )
+            logger.debug("Getting indices...")
+            nn_indices = nn_indices.get()
+            logger.debug("Getting distances...")
+            distances = distances.get()
+        elif method == "umap":
+            logger.debug(f"Using umap nearest_neighbors on '{m}' modality...")
+            nn_indices, distances, _ = nearest_neighbors(
+                rep,
+                n_neighbors=n_multineighbors + 1,
+                metric=cmetric,
+                metric_kwds={},
+                random_state=randomstate,
+                angular=False,
+                low_memory=lmemory,
+            )
+
+        logger.debug("Creating a sparse matrix from the neighbors calculations")
+        graph = csr_array(
             (
                 distances[:, 1:].reshape(-1),
                 nn_indices[:, 1:].reshape(-1),
                 np.concatenate((nn_indices[:, 0] * n_multineighbors, (nn_indices[:, 1:].size,))),
             ),
             shape=(rep.shape[0], rep.shape[0]),
-        )
+        ).tocoo
         with warnings.catch_warnings():
             # CSR is faster here than LIL, no matter what SciPy says
             warnings.simplefilter("ignore", category=SparseEfficiencyWarning)
             if observations1.size == observations.size:
                 if neighbordistances.size == 0:
+                    # logger.debug("Using neighborhood graph for neighbor distances")
                     neighbordistances = graph
+                    # logger.debug(".")
                 else:
-                    neighbordistances += graph
+                    # logger.debug("Adding neighborhood graph to neighbor distances")
+                    # logger.debug(f"neighbordistances dims: {neighbordistances.shape}, type: {type(neighbordistances)}")
+                    # logger.debug(f"graph dims: {graph.shape}, type: {type(graph)}")
+                    # return neighbordistances, graph
+                    neighbordistances = neighbordistances.tocoo() + graph.tocoo()
+                    if isinstance(neighbordistances, coo_array):
+                        neighbordistances = neighbordistances.to_csr()
+
             # the naive version of neighbordistances[idx[:, np.newaxis], idx[np.newaxis, :]] += graph
             else:
                 # uses way too much memory
-                if largeidx:
-                    graph.indptr = graph.indptr.astype(np.int64)
-                    graph.indices = graph.indices.astype(np.int64)
                 fullstarts, fullstops = _make_slice_intervals(
                     np.where(observations.isin(observations1))[0], sparse_matrix_assign_splits
                 )
@@ -336,7 +419,6 @@ def neighbors(
                     np.where(mdata.mod[m].obs.index.isin(observations1))[0],
                     sparse_matrix_assign_splits,
                 )
-
                 for fullidxstart1, fullidxstop1, modidxstart1, modidxstop1 in zip(
                     fullstarts, fullstops, modstarts, modstops, strict=False
                 ):
@@ -348,7 +430,7 @@ def neighbors(
                         ]
 
     neighbordistances.data[:] = 0
-    logging.info("Calculating multimodal nearest neighbors...")
+    logger.info("Calculating multimodal nearest neighbors...")
     if modality_weights is None:
         modality_weights = {_: 1 for _ in modalities}
     if len(modality_weights) != len(modalities):
@@ -367,7 +449,6 @@ def neighbors(
 
         rep = reps[m]
         csigmas = sigmas[m]
-
         for cell, _ in enumerate(fullidx):
             row = slice(neighbordistances.indptr[cell], neighbordistances.indptr[cell + 1])
             nz = neighbordistances.indices[row]
@@ -380,13 +461,33 @@ def neighbors(
 
     neighbordistances = _sparse_csr_fast_knn(neighbordistances, n_neighbors + 1)
 
-    logging.info("Calculating connectivities...")
-    _, connectivities = _compute_connectivities_umap(
+    logger.info("Calculating connectivities...")
+
+    if method == "rapids":
+        try:
+            from cuml.manifold.simpl_set import fuzzy_simplicial_set
+
+            logger.debug("Imported `fuzzy_simplicial_set` from `rapids`")
+        except ImportError as err:
+            msg = "cuml could not be imported - is it installed?"
+            raise ImportError(msg) from err
+    elif method == "umap":
+        from umap.umap_ import fuzzy_simplicial_set
+
+        logger.debug("Imported `fuzzy_simplicial_set` from `umap`")
+
+    connectivities, _, _ = fuzzy_simplicial_set(
+        X=coo_array((neighbordistances.shape[0], 1)),
+        n_neighbors=n_neighbors + 1,
+        random_state=None,
+        metric="euclidean",
         knn_indices=neighbordistances.indices.reshape((neighbordistances.shape[0], n_neighbors + 1)),
         knn_dists=neighbordistances.data.reshape((neighbordistances.shape[0], n_neighbors + 1)),
-        n_obs=neighbordistances.shape[0],
-        n_neighbors=n_neighbors + 1,
+        set_op_mix_ratio=1.0,
+        local_connectivity=1.0,
     )
+
+    connectivities = connectivities.tocsr()
 
     if key_added is None:
         key_added = "neighbors"
@@ -404,7 +505,7 @@ def neighbors(
         "random_state": random_state,
         "use_rep": mod_reps,
         "n_pcs": mod_n_pcs,
-        "method": "umap",
+        "method": method,
     }
     mdata.obsp[dists_key] = neighbordistances
     mdata.obsp[conns_key] = connectivities
@@ -415,8 +516,46 @@ def neighbors(
     return mdata if copy else None
 
 
-def neighdist(rep, cell, nz, metric):
-    if issparse(rep):
-        return -cdist(rep[cell, :].toarray(), rep[nz, :].toarray(), metric=metric)
+def remove_isotype_outliers(
+    adata: ad.AnnData,
+    max_isotype_counts_percentile: float = 0.95,
+    /,
+    isotype_affix: str | None = None,
+    isotype_names: str | None = None,
+) -> None:
+    """Remove cells that have isotype counts that are beyond upper percentile threshold
+
+    Parameters
+    ----------
+    adata : ad.AnnData
+
+    max_isotype_counts_percentile : float
+
+    isotype_affix : str | None
+
+    isotype_names : str | None
+
+    Returns
+    -------
+    None
+        adata is modified inplace
+    """
+    if isotype_affix:
+        isotype_names = adata.var_names[adata.var_names.str.contains(isotype_affix)]
     else:
-        return -cdist(rep[np.newaxis, cell, :], rep[nz, :], metric=metric)
+        isotype_names = adata.var_names[adata.var_names.isin(isotype_names)]
+
+    isotype_idx = {_: adata.var_names.tolist().index(_) for _ in isotype_names}
+    for _ in isotype_idx:
+        if issparse(adata.X):
+            adata.obs[f"{_} percentile"] = value_percentile(adata.X.toarray()[:, isotype_idx[_]])
+        else:
+            adata.obs[f"{_} percentile"] = value_percentile(adata.X[:, isotype_idx[_]])
+    for _ in isotype_idx:
+        # do this twice because if it is all in the same loop, the quantile
+        # calculations are affected by the removal of the first noisy samples
+        filter_obs(
+            adata,
+            f"{_} percentile",
+            lambda x: x < max_isotype_counts_percentile * 100,
+        )

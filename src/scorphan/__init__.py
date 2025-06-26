@@ -16,4 +16,4 @@ except PackageNotFoundError:  # pragma: no cover
     __version__ = "unknown"
 
 
-__all__ = ["pp", "tl", "ag", "ut"]
+__all__ = ["ag", "pp", "tl", "ut"]
