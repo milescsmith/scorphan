@@ -391,7 +391,7 @@ def neighbors(
                 np.concatenate((nn_indices[:, 0] * n_multineighbors, (nn_indices[:, 1:].size,))),
             ),
             shape=(rep.shape[0], rep.shape[0]),
-        ).tocoo
+        ).tocoo()
         with warnings.catch_warnings():
             # CSR is faster here than LIL, no matter what SciPy says
             warnings.simplefilter("ignore", category=SparseEfficiencyWarning)
