@@ -164,3 +164,6 @@ cython_debug/
 **/*.h5ad
 **/*.ipynb
 GSEA_results/
+**/*.h5
+**/*.h5mu
+.vscode/

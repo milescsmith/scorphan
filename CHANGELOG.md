@@ -1,5 +1,10 @@
 # scorphan
 
+## [0.9.2] - 2025-06-26
+
+### Fixed
+- added the `()` to a stray function call that was missing them
+
 ## [0.9.1] - 2025-06-24
 
 ### Fixed
