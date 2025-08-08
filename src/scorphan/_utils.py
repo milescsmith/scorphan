@@ -1,7 +1,11 @@
+import re
 from functools import partial
+from pathlib import Path
 
+import h5py
 import numpy as np
 import numpy.typing as npt
+import polars as pl
 import scipy as sp
 import sparse
 from numba import float32, float64, guvectorize, int32, int64, vectorize
@@ -88,3 +92,92 @@ def is_outlier(adata, metric: str, nmads: int):
         np.median(met) + nmads * median_abs_deviation(met) < met
     )
     return outlier
+
+
+def repair_anndataset(
+    bad_file: Path,
+    new_file: Path,
+    backing_files_dir: Path,
+    sample_name_pattern: str,
+    overwrite: bool = False,
+) -> None:
+    """
+        For whatever reason, the AnnDataSet files produced by SnapATAC2 seem to rot quickly. Or, SnapATAC2 might crash.
+        Even closed properly, they rapidly develop a problem with the adatas.uns["AnnDataSet"]
+        polars DataFrame - something about wrong length or a bad EOF
+
+        I don't want to keep spending time either reproducing this thing or remembering how to repair it.
+
+        Parameters
+        ----------
+        bad_file : Path
+            Path to the file that needs repairing
+        new_file : Path
+            Path to where a new object will be written
+        backing_files_dir: Path
+            Path to where the individual backing files are located
+        sample_name_pattern : str
+            A regular expression corresponding to the sample name used for the individual backing files
+        overwrite : bool, default False
+            If the new_file already exists, should it be overwritten?
+
+        Returns:
+        --------
+        None
+            A new file is created.
+
+        Example
+        -------
+        >>> repair_anndataset(
+        >>> bad_file=data_folder.joinpath(
+        >>>     "bad_file.h5ads"
+        >>> ),
+        >>> new_file=data_folder.joinpath(
+        >>>     "new_good_file.h5ads"
+        >>> ),
+        >>> backing_files_dir=data_folder.joinpath("atacseq_backing_files"),
+        >>> sample_name_pattern=r"Sample[0-9]+",
+        >>> overwrite=True,
+    )
+    """
+
+    if overwrite and new_file.exists():
+        new_file.unlink()
+
+    with (
+        h5py.File(
+            bad_file,
+            mode="r",
+        ) as f,
+        h5py.File(
+            new_file,
+            mode="a",
+        ) as g,
+    ):
+        for i in list(f):
+            if i != "uns":
+                g.copy(source=f[i], dest=i)
+
+        g.create_group("uns")
+        for j in list(f["uns"]):
+            if j != "AnnDataSet":
+                g["uns"].copy(source=f["uns"][j], dest=j)
+
+        backing_files = pl.from_dict(
+            {
+                "keys": [
+                    re.findall(pattern=sample_name_pattern, string=str(_))[0] for _ in backing_files_dir.glob("*.h5ad")
+                ],
+                "file_path": list(backing_files_dir.glob("*.h5ad")),
+            }
+        )
+        backing_files = backing_files.with_row_index().cast({"index": str})
+
+        g["uns"].create_group("AnnDataSet")
+
+        for col in backing_files.columns:
+            g["uns"]["AnnDataSet"].create_dataset(
+                name=col,
+                shape=(backing_files.shape[0],),
+                data=backing_files[col].to_list(),
+            )

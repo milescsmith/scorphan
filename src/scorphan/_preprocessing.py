@@ -432,7 +432,7 @@ def neighbors(
     neighbordistances.data[:] = 0
     logger.info("Calculating multimodal nearest neighbors...")
     if modality_weights is None:
-        modality_weights = {_: 1 for _ in modalities}
+        modality_weights = dict.fromkeys(modalities, 1)
     if len(modality_weights) != len(modalities):
         msg = "Number of weights in modality_weights does not match the actual number of modalities!"
         raise ValueError(msg)

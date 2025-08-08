@@ -473,7 +473,6 @@ def umap(
     from copy import deepcopy
 
     from scanpy.tools._utils import _choose_representation
-    from scipy.sparse import issparse
 
     # we need a data matrix. This is used only for initialization and only if init_pos=="spectral"
     # and the graph has many connected components, so we can do very simple imputation

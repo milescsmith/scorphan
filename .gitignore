@@ -167,3 +167,4 @@ GSEA_results/
 **/*.h5
 **/*.h5mu
 .vscode/
+**/typings
