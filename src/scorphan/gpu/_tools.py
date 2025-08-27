@@ -19,9 +19,9 @@ def cu_lsi(data: ad.AnnData | mu.MuData, scale_embeddings: bool = True, n_comps:
     ----------
     data:
             AnnData object or MuData object with 'atac' modality
-    scale_embeddings: bool (default: True)
+    scale_embeddings: bool [default: True]
             Scale embeddings to zero mean and unit variance
-    n_comps: int (default: 50)
+    n_comps: int [default: 50]
             Number of components to calculate with SVD
     """
     if isinstance(data, ad.AnnData):

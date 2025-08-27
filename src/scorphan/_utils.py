@@ -56,12 +56,14 @@ def above_below(x: float, lower: float, upper: float) -> float:
 
 @guvectorize([(float64[:, :], float64, float64, float64[:, :])], "(m,n),(),()->(m,n)")
 def percentile_trim_cols(
-    arr: npt.ArrayLike, lower: float = 0.10, upper: float = 0.99, res: npt.ArrayLike = None
+    arr: npt.ArrayLike, lower: float = 0.10, upper: float = 0.99, res: npt.ArrayLike | None = None
 ) -> npt.ArrayLike:
     """
     Row-by-row, calculate the lower and upper percentiles and then use those to replace values that are
     below or above them, respectively
     """
+    if res is None:
+        res = np.zeros_like(res)
     for i in range(arr.shape[1]):
         lower_bounds = np.quantile(arr[:, i], lower)
         upper_bounds = np.quantile(arr[:, i], upper)
@@ -70,7 +72,7 @@ def percentile_trim_cols(
 
 @guvectorize([(float64[:, :], float64, float64, float64[:, :])], "(m,n),(),()->(m,n)")
 def percentile_trim_rows(
-    arr: npt.NDArray, lower: float = 0.10, upper: float = 0.99, res: npt.NDArray = None
+    arr: npt.NDArray, lower: float = 0.10, upper: float = 0.99, res: npt.NDArray | None = None
 ) -> npt.NDArray:
     """
     Row-by-row, calculate the lower and upper percentiles and then use those to replace values that are
@@ -79,6 +81,8 @@ def percentile_trim_rows(
     NOTE: even though there are defaults listed here, they DO NOT WORK
     I don't yet know why numba ignores them.
     """
+    if res is None:
+        res = np.zeros_like(arr)
     for i in range(arr.shape[1]):
         lower_bounds = np.quantile(arr[:, i], lower)
         upper_bounds = np.quantile(arr[:, i], upper)

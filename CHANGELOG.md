@@ -5,6 +5,8 @@
 ### Added
 - New `gpu` submodule for placing various functions I'm attemptint to gpu-accelerate
 - optional `cupy` dependency
+- `tl.extract_h5_obs`, which can read the `obs` attribute of an Anndata or MuData object directly from disk and
+    into a pandas.DataFrame
 
 ## [0.9.2] - 2025-06-26
 

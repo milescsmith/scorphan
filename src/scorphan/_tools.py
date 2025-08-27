@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Final, Literal
 
 import gseapy as gp
+import h5py
 import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
@@ -45,7 +46,7 @@ def muon_paga_umap(
 ) -> None:
     msg = "This function does not currently work and is disabled for the time being."
     logger.error(msg)
-    raise RuntimeError(msg)
+    raise NotImplementedError(msg)
     # neighbors = mdata.uns[neighbors_key]
     # reps = {}
     # nfeatures = 0
@@ -527,3 +528,33 @@ def umap(
     mdata.obsm["X_umap"] = adata.obsm["X_umap"]
     mdata.uns["umap"] = adata.uns["umap"]
     return mdata if copy else None
+
+
+def extract_h5_obs(h5_file: Path) -> pd.DataFrame:
+    """Read the obs attribute directly from the on-disk Anndata or MuData object
+    without reading it into memory.
+
+    Parameters
+    ---------
+    h5_file : Path
+        A Path object pointing to the Anndata/MuData file with the obs attribute of interest
+
+    Returns
+    -------
+
+    pandas.DataFrame
+    """
+    with h5py.File(h5_file) as f:
+        obs_h5_dict = dict(f["obs"].items())
+        index_col = "_index" if "_index" in obs_h5_dict.keys() else "index"
+        index = obs_h5_dict[index_col][:]
+        obs_df = pd.DataFrame(index=pd.Index(index).str.decode("utf-8"))
+
+        for k, v in obs_h5_dict.items():
+            if isinstance(v, h5py.Group):
+                decoded = {j: i.decode() for j, i in enumerate(v["categories"][:])}
+                obs_df.insert(loc=obs_df.shape[1], column=k, value=[decoded[_] for _ in v["codes"][:]])
+            else:
+                obs_df.insert(loc=obs_df.shape[1], column=k, value=v[:])
+        obs_df.drop(columns=index_col, inplace=True)
+    return obs_df
