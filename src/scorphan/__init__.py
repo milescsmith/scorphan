@@ -7,6 +7,7 @@ from scorphan import _aggregation as ag
 from scorphan import _preprocessing as pp
 from scorphan import _tools as tl
 from scorphan import _utils as ut
+from scorphan import gpu
 
 logger.disable("scorphan")
 
@@ -16,4 +17,4 @@ except PackageNotFoundError:  # pragma: no cover
     __version__ = "unknown"
 
 
-__all__ = ["ag", "pp", "tl", "ut"]
+__all__ = ["ag", "gpu", "pp", "tl", "ut"]

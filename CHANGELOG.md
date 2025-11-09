@@ -1,5 +1,18 @@
 # scorphan
 
+## [0.10.0] - 2025-08-08
+
+### Added
+- New `gpu` submodule for placing various functions I'm attemptint to gpu-accelerate
+- optional `cupy` dependency
+- `tl.extract_h5_obs`, which can read the `obs` attribute of an Anndata or MuData object directly from disk and
+    into a pandas.DataFrame
+
+## [0.9.2] - 2025-06-26
+
+### Fixed
+- added the `()` to a stray function call that was missing them
+
 ## [0.9.1] - 2025-06-24
 
 ### Fixed
@@ -88,6 +101,8 @@
 
 - Created module
 
+[0.10.0]: https://github.com/milescsmith/scorphan/releases/compare/0.9.2..0.10.0
+[0.9.2]: https://github.com/milescsmith/scorphan/releases/compare/0.9.1..0.9.2
 [0.9.1]: https://github.com/milescsmith/scorphan/releases/compare/0.9.0..0.9.1
 [0.9.0]: https://github.com/milescsmith/scorphan/releases/compare/0.8.1..0.9.0
 [0.8.1]: https://github.com/milescsmith/scorphan/releases/compare/0.8.0..0.8.1

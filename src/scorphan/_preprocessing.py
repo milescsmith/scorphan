@@ -391,7 +391,7 @@ def neighbors(
                 np.concatenate((nn_indices[:, 0] * n_multineighbors, (nn_indices[:, 1:].size,))),
             ),
             shape=(rep.shape[0], rep.shape[0]),
-        ).tocoo
+        ).tocoo()
         with warnings.catch_warnings():
             # CSR is faster here than LIL, no matter what SciPy says
             warnings.simplefilter("ignore", category=SparseEfficiencyWarning)
@@ -432,7 +432,7 @@ def neighbors(
     neighbordistances.data[:] = 0
     logger.info("Calculating multimodal nearest neighbors...")
     if modality_weights is None:
-        modality_weights = {_: 1 for _ in modalities}
+        modality_weights = dict.fromkeys(modalities, 1)
     if len(modality_weights) != len(modalities):
         msg = "Number of weights in modality_weights does not match the actual number of modalities!"
         raise ValueError(msg)
