@@ -1,21 +1,34 @@
+# fuck pyright is so goddamned stupid about some things
+
 import re
+import warnings
 from collections.abc import Sequence
+from multiprocessing import cpu_count
 
 # from copy import deepcopy
 from pathlib import Path
 from typing import Final, Literal
 
+import anndata as ad
+import decoupler as dc
 import gseapy as gp
 import h5py
 import matplotlib.pyplot as plt
+import muon as mu
 import networkx as nx
 import numpy as np
 import pandas as pd
 import scanpy as sc
 from anndata import AnnData
+from formulaic.errors import FormulaicError
+from formulaic.parser import DefaultFormulaParser
+from formulaic_contrasts import FormulaicContrasts
 from loguru import logger
 from matplotlib import colormaps
 from mudata import MuData
+from pydeseq2.dds import DeseqDataSet
+from pydeseq2.default_inference import DefaultInference
+from pydeseq2.ds import DeseqStats
 from rich.progress import Progress
 
 # from scanpy.tools._utils import _choose_representation
@@ -107,14 +120,14 @@ def muon_paga_umap(
 
 def GSEApy_process(
     adata: AnnData,
-    groupby: str | Sequence[str] | None = None,
+    groupby: str | Sequence[str],
     comparison_group: str | None = None,
     reference_group: str | None = None,
     obs_subset: pd.Series | pd.Index | list[str] | None = None,
     var_subset: pd.Series | pd.Index | list[str] | None = None,
     top_x_pathways: int = 5,
     top_pathway_type: Literal["heatmap", "dotplot"] = "dotplot",
-    geneset: str | list[str] | Path | None = None,
+    geneset: str | list[str] | dict[str, list[str]] | Path | None = None,  # pyright: ignore[reportRedeclaration]
     outdir_path: Path | None = None,
     verbose: bool = False,
 ):
@@ -122,29 +135,29 @@ def GSEApy_process(
 
     Parameters
     ----------
-    adata : AnnData
+    adata : :class:`AnnData
         Object containing scRNAseq data to perform analysis on
-    groupby : str | None, optional
+    groupby : :class:`str`, optional
         Column in adata.obs to use for grouping cells, by default None
-    comparison_group : str | None, optional
+    comparison_group : :class:`str`, optional
         Factor in adata.obs[groupby] to generate the analysis for. For example, the disease group of interest., by default None
-    reference_group : str | None, optional
+    reference_group : :class:`str`, optional
         Factor in adata.obs[groupby] to set as the basis of comparison, such as the control group, by default None
-    obs_subset : pd.Series | pd.Index | list[str] | None, optional
+    obs_subset : :class:`pd.Series` | :class:`pd.Index` | :class:`list[str]`, optional
         Names from adata.obs_names (i.e. cell barcodes) to use to subset the data, by default None
-    var_subset : pd.Series | pd.Index | list[str] | None, optional
+    var_subset : :class:`pd.Series` | :class:`pd.Index` | :class:`list[str]`, optional
         Names from adata.var_names (i.e. gene or protein names) to use to subset the data, by default None
-    top_x_pathways : int, optional
+    top_x_pathways : :class:`int`, optional
         Number of pathways to generate plots for, by default 5
-    top_pathway_type : Literal["heatmap", "dotplot"], optional
+    top_pathway_type : :class:`Literal["heatmap", "dotplot"], optional
         Type of plots to generate, by default "dotplot"
-    geneset : str | Path | None, optional
+    geneset : :class:`str` | :class:`list[str]` | :class:`dict[str, list[str]]` | :class:`Path`, optional
         Gene set list to test for. Can either be the name of a pathway or the path to a gene matrix transposed (*.gmt)
         file, by default None, which results in using "GO_Biological_Process_2023", "GO_Cellular_Component_2023", and
         "GO_Molecular_Function_2023"
-    outdir_path : Path | None, optional
+    outdir_path : :class:`Path`, optional
         Location to write output plots and spreadsheets to, by default None
-    verbose : bool, optional
+    verbose : :class:`bool`, optional
         More or less feedback, by default False
 
     """
@@ -154,9 +167,13 @@ def GSEApy_process(
         if _ is None:
             msg = f"A value for {_} was not given"
             raise SyntaxError(msg)
-    if geneset is None:
-        geneset = ["GO_Biological_Process_2023", "GO_Cellular_Component_2023", "GO_Molecular_Function_2023"]
+    if isinstance(geneset, Path):
+        geneset: dict[str, list[str]] = gp.parser.read_gmt(str(geneset))  # pyright: ignore[reportRedeclaration, reportAssignmentType]
+    elif geneset is None:
+        geneset: list[str] = ["GO_Biological_Process_2023", "GO_Cellular_Component_2023", "GO_Molecular_Function_2023"]  # pyright: ignore[reportRedeclaration]
         logger.info("No geneset was specified. Using the three GeneOntology groups")
+    else:
+        geneset: list[str] = geneset  # noqa: PLW0127  # pyright: ignore[reportAssignmentType]
 
     # TODO: no need to repeat normalization/log-transformation. Wrap the next few lines in something like a
     # prep_adata() function
@@ -171,7 +188,7 @@ def GSEApy_process(
 
     if not is_integer_array(adata.X):
         if "counts" in adata.layers and is_integer_array(adata.layers["counts"]):
-            adata.layers["lognorm"] = adata.X.copy()
+            adata.layers["lognorm"] = adata.X.copy()  # pyright: ignore[reportOptionalMemberAccess, reportAttributeAccessIssue]
             adata.X = adata.layers["counts"].copy()
 
             logger.info("normalizing and log transforming data")
@@ -181,19 +198,19 @@ def GSEApy_process(
             msg = "This function requires starting with untransformed, integer counts."
             raise ValueError(msg)
 
-    adata.layers["lognorm"] = adata.X.copy()
+    adata.layers["lognorm"] = adata.X.copy()  # pyright: ignore[reportAttributeAccessIssue, reportOptionalMemberAccess]
 
     ####GSEA
     if issparse(adata.layers["counts"]):
         logger.info("inflating sparse counts")
-        counts_df = adata.layers["counts"].toarray().transpose()
+        counts_df = adata.layers["counts"].toarray().transpose()  # pyright: ignore[reportAttributeAccessIssue]
     else:
         counts_df = adata.layers["counts"].transpose()
     logger.info("Performing GSEA")
     gs = gp.GSEA(
         data=pd.DataFrame(counts_df, index=var_subset, columns=obs_subset),  # row -> genes, column-> samples
         gene_sets=geneset,
-        classes=adata.obs.loc[obs_subset, groupby].tolist(),
+        classes=adata.obs.loc[obs_subset, groupby].tolist(),  # pyright: ignore[reportAttributeAccessIssue]
         permutation_num=1000,
         permutation_type="phenotype",
         outdir=str(outdir_path.joinpath("GSEA_results")),
@@ -201,7 +218,7 @@ def GSEApy_process(
         threads=16,
         verbose=True,
     )
-    gs.pheno_pos = comparison_group
+    gs.pheno_pos = comparison_group  # pyright: ignore[reportAttributeAccessIssue]
     gs.pheno_neg = reference_group
     gs.run()
 
@@ -209,18 +226,18 @@ def GSEApy_process(
     # this converts the "Term" and "Lead_genes" columns into a dict for the number of top pathways specified
     term_gene_dict = {
         re.sub(pattern=r"\s\(GO:[0-9]+\)", repl="", string=x[1]["Term"]): x[1]["Lead_genes"].split(";")
-        for i, x in enumerate(gs.res2d.iterrows())
+        for i, x in enumerate(gs.res2d.iterrows())  # pyright: ignore[reportOptionalMemberAccess]
         if i < top_x_pathways
     }
 
     with Progress() as progress:
         task = progress.add_task(description="Creating GSEA pathway plots for", total=top_x_pathways)
         progress.start()
-        for i in term_gene_dict.items():
+        for i, _ in term_gene_dict.items():
             # term_name = re.sub(pattern=r"\s\(GO:[0-9]+\)", repl="", string=gs.res2d.Term.iloc[i])
             progress.update(task, description=f"Creating GSEA pathway plots for {i}")
             logger.info(f"generating plots for {i}")
-            fig, ax = plt.subplots(figsize=(9, 5))
+            _, ax = plt.subplots(figsize=(9, 5))
             match top_pathway_type:
                 case "heatmap":
                     sc.pl.heatmap(
@@ -243,12 +260,12 @@ def GSEApy_process(
                         show=False,
                         # save=str(outdir_path.joinpath(f"{i}_Heatmap.png"))
                         # show_gene_labels=True,
-                        ax=ax,
+                        ax=ax,  # pyright: ignore[reportArgumentType]
                     )
             ax.set_title(i)
-            ax.figure.savefig(Path(outdir_path).absolute().joinpath("GSEA_results", f"{i}_Heatmap.png"))
+            ax.figure.savefig(Path(outdir_path).absolute().joinpath("GSEA_results", f"{i}_Heatmap.png"))  # pyright: ignore[reportAttributeAccessIssue]
             progress.update(task, advance=1)
-        term = gs.res2d.Term
+        term = gs.res2d.Term  # pyright: ignore[reportOptionalMemberAccess]
         # gp.gseaplot(res.ranking, term=term[i], **res.results[term[i]])
         gs.plot(terms=term[:top_x_pathways], ofname=str(outdir_path.joinpath("GSEA_results", "Top_GSEA_Terms.png")))
 
@@ -381,7 +398,7 @@ def umap(
     copy: bool = False,
     method: Literal["umap", "rapids"] = "umap",
     neighbors_key: str | None = None,
-) -> MuData | None:
+) -> MuData | AnnData | None:
     """
     Embed the multimodal neighborhood graph using UMAP (McInnes et al, 2018).
 
@@ -536,13 +553,13 @@ def extract_h5_obs(h5_file: Path) -> pd.DataFrame:
 
     Parameters
     ---------
-    h5_file : Path
+    h5_file : :class:`Path`
         A Path object pointing to the Anndata/MuData file with the obs attribute of interest
 
     Returns
     -------
 
-    pandas.DataFrame
+    :class:`pandas.DataFrame`
     """
     with h5py.File(h5_file) as f:
         obs_h5_dict = dict(f["obs"].items())
@@ -552,9 +569,253 @@ def extract_h5_obs(h5_file: Path) -> pd.DataFrame:
 
         for k, v in obs_h5_dict.items():
             if isinstance(v, h5py.Group):
+                # need to handle an instance where we
                 decoded = {j: i.decode() for j, i in enumerate(v["categories"][:])}
-                obs_df.insert(loc=obs_df.shape[1], column=k, value=[decoded[_] for _ in v["codes"][:]])
+                try:
+                    obs_df.insert(loc=obs_df.shape[1], column=k, value=[decoded[_] if _ != 1 else np.nan for _ in v["codes"][:]])
+                except KeyError as err:
+                    msg = f"{v=}"
+                    raise KeyError(msg) from err
             else:
                 obs_df.insert(loc=obs_df.shape[1], column=k, value=v[:])
         obs_df.drop(columns=index_col, inplace=True)
     return obs_df
+
+
+def filter_df(
+    df: pd.DataFrame,
+    by: str,
+    values: Sequence[str] | str,
+    negate: bool = False,
+) -> pd.DataFrame:
+    """Filter a pandas dataframe by a column value
+    Parameters
+    ----------
+    df : :class:`pd.DataFrame`
+    by : :class:`str`
+        Column to use when filters
+    values : :class:`Sequence[str]` | :class:`str`
+        Keep rows based on this value in the `by` columns. If `negate` is True, discard the rows instead.
+    negate : :class:`bool`
+        Should the dataframe be filtered to keep rows that do *not* have the indicated values?
+
+    Returns
+    -------
+    :class:`pd.DataFrame`
+    """
+    match values:
+        case str() if negate:
+            return df.loc[df[by] != values, :]
+        case str():
+            return df.loc[df[by] != values, :]
+        case Sequence() if negate:
+            return df.loc[~df[by].isin(values), :]
+        case Sequence():
+            return df.loc[df[by].isin(values), :]
+
+
+def pseudobulk_differential_expression(
+    adata: ad.AnnData,
+    compare_col: str,
+    design: str,
+    comparisons: dict[str, str] | Sequence[dict[str, str]],
+    cell_type_of_interest: str | None = None,
+    cell_type_obs_col: str | None = None,
+    sample_name_col: str = "sample_name",
+    min_sum_counts: float = 1.0,
+    min_std: float = 0.1,
+    layer: str | None = None,
+    n_cpus: int = -1,
+    output_dir: Path | None = None,
+) -> dict[str, DeseqStats]:
+    """
+    Parameters
+    ----------
+    adata : ad.AnnData
+        AnnData object to examine
+    compare_col : str
+        Column in `adata.obs` to use when grouping cells for comparison
+    design : str
+        Design formula to use for analysis. Like an R-style formula. For example: "~disease"
+    comparisons : dict[str, str], Sequence[dict[str, str]]
+        What groups to compare and how to compare them. This MUST be a dictionary in the form of
+        `{"ref": "controls", "test": "test_group"}`
+    cell_type_of_interest : str, optional
+        A value in `cell_type_obs_col` to subset `adata` by
+    cell_type_obs_col : str, optional
+        A column in `adata.obs` to look for values by which to subset `adata`
+    sample_name_col : str, default = "sample_name"
+        Name of column in `adata.obs` to be used to group cells when pseudobulking the sample
+    min_sum_counts : float, default = 1.0
+        Count threshold above which genes much be for their inclusion in analysis.
+        Genes with a count below this will be removed.
+    min_std : float, default = 0.1
+        Standard deviation threshold above which genes much be for their inclusion in analysis.
+        Genes with a stdev below this will be removed.
+    layer : str, optional
+        Layer to use for the counts
+    n_cpus : int, default = -1 (i.e. use all available cpus)
+        Number of CPUs to use when running pydeseq2 functions.
+    output_dir : Path, optional
+        Path to where DEG results should be saved.
+
+    Returns
+    -------
+    A dictionary with the comparison name as keys in the form of "ref_vs_test" and the DeseqStats object as value
+
+    Example
+    -------
+    >>> res = pseudobulk_deg_process(
+            adata=bcell_rna,
+            design=~disease+age,
+            comparisons=[
+                {"ref": "Neg", "test": "Pos"},
+                {"ref": "Neg", "test": "ILE"},
+                {"ref": "Neg", "test": "SLE"},
+                {"ref": "Pos", "test": "ILE"},
+                {"ref": "Pos", "test": "SLE"},
+                {"ref": "ILE", "test": "SLE"}
+            ],
+            cell_type_of_interest="Memory",
+            cell_type_obs_col="type_label",
+            layer="counts"
+        )
+    """
+    # TODO: handle errors and a lot of checking and messages!
+
+    if n_cpus == -1:
+        n_cpus = cpu_count()
+
+    check_formula(adata.obs, design)
+
+    if cell_type_of_interest:
+        if cell_type_obs_col is None:
+            msg = f"{cell_type_of_interest} was passed as the 'cell_type_of_interest' argument, but no 'cell_type_obs_col' was given!"
+            raise KeyError(msg)
+        if any(adata.obs[cell_type_obs_col] == cell_type_of_interest):
+            subset: ad.AnnData = adata[adata.obs[cell_type_obs_col] == cell_type_of_interest, :]
+        else:
+            msg = f"There do not appear to be any cells where the value of '{cell_type_obs_col}' is '{cell_type_of_interest}'"
+            raise ValueError(msg)
+    else:
+        subset = adata
+
+    subset_bulked: ad.AnnData = dc.pp.pseudobulk(adata=subset, sample_col=sample_name_col, groups_col=None, layer=layer)
+
+    # I don't *think* decoupler can return a sparse pseudobulked object, but do I know for sure? No.
+    if issparse(subset_bulked.X):
+        msg = "PyDESeq2 doesn't work with sparse matrices. Densifying X"
+        warnings.warn(msg, stacklevel=2)
+        subset_bulked.X = subset_bulked.X.toarray()  # pyright: ignore[reportOptionalMemberAccess, reportAttributeAccessIssue]
+
+    exprs: pd.DataFrame = pd.DataFrame(
+        data=subset_bulked.X, index=subset_bulked.obs_names, columns=subset_bulked.var_names
+    )
+
+    # dumping genes with no detectable expression and no variance
+    for stat, func, thresh in zip(
+        ["below_zero_thresh", "below_deviance_thresh"], [np.sum, np.std], [min_sum_counts, min_std], strict=True
+    ):
+        subset_bulked.var[stat] = (
+            func(exprs, axis=0).where(lambda x: x < thresh).replace({np.nan: False, 0.0: True})[subset_bulked.var_names]
+        )
+        mu.pp.filter_var(subset_bulked, var=stat, func=lambda x: ~x)
+
+    if not full_rank_design(subset_bulked, design):
+        msg = (
+            "One or more terms in the design formula is causing the design matrix to not be full rank. "
+            "Attempting to correct an issue with `decoupler` changing continuous variables to categorical..."
+        )
+        warnings.warn(msg, stacklevel=2)
+        try:
+            subset_bulked.obs = fix_continuous_vars(subset_bulked.obs, adata.obs, design)
+        except FormulaicError as err:
+            msg = "Something is wrong with the design formula. Stopping as PyDESeq2 WILL fail"
+            raise FormulaicError(msg) from err
+
+    inference = DefaultInference(n_cpus=cpu_count())
+
+    dds = DeseqDataSet(
+        adata=subset_bulked,
+        design=design,
+        refit_cooks=True,
+        inference=inference,
+    )
+
+    dds.deseq2()
+
+    res_dict = {}
+    # start looping through comparisons
+    if isinstance(comparisons, Sequence):
+        for compare in comparisons:
+            stat_res = DeseqStats(
+                dds, contrast=[compare_col, compare["test"], compare["ref"]], inference=inference, n_cpus=n_cpus
+            )
+
+            stat_res.summary()
+            # add results to res_dict
+            res_dict[f"{compare['ref']}_vs_{compare['test']}"] = stat_res
+
+            if output_dir:
+                stat_res.results_df.to_csv(
+                    output_dir.joinpath(
+                        f"{cell_type_of_interest}_{cell_type_obs_col}_{compare['ref']}{compare['test']}.csv".replace(
+                            " ", "_"
+                        )
+                    )
+                )
+    else:
+        stat_res = DeseqStats(
+            dds, contrast=[compare_col, comparisons["test"], comparisons["ref"]], inference=inference, n_cpus=n_cpus
+        )
+
+        stat_res.summary()
+        # add results to res_dict
+        res_dict[f"{comparisons['ref']}_vs_{comparisons['test']}"] = stat_res
+
+        if output_dir:
+            stat_res.results_df.to_csv(
+                output_dir.joinpath(
+                    f"{cell_type_of_interest}_{cell_type_obs_col}_{comparisons['ref']}{comparisons['test']}.csv".replace(
+                        " ", "_"
+                    )
+                )
+            )
+    return res_dict
+
+
+# based on the version in PyDESeq2. Copied and not imported because it is a private method
+def full_rank_design(adata: ad.AnnData, formula: str) -> bool:
+    """Check that the design matrix has full column rank."""
+    design_matrix = FormulaicContrasts(data=adata.obs, design=formula).design_matrix
+    rank = np.linalg.matrix_rank(A=design_matrix)
+    num_vars = design_matrix.shape[1]
+
+    if rank < num_vars:
+        return False
+    else:
+        return True
+
+
+def extract_terms(formula: str) -> list[str]:
+    return [
+        token.token
+        for token in DefaultFormulaParser().get_tokens(formula)
+        if token.kind.value == "name"  # pyright: ignore[reportOptionalMemberAccess]
+    ]
+
+
+def fix_continuous_vars(obs, prev_obs, formula) -> pd.DataFrame:
+    design_terms = extract_terms(formula)
+    for term in design_terms:
+        if (obs[term].dtype == "category") & (obs[term].dtype != prev_obs[term].dtype):
+            obs[term] = obs[term].astype(prev_obs[term].dtype)
+    return obs
+
+
+def check_formula(obs, formula) -> None:
+    design_terms = extract_terms(formula)
+    not_found = [term for term in design_terms if term not in obs.columns]
+    if len(not_found) > 0:
+        msg = f"The terms {', '.join(not_found)} are not present in the anndata object's obs columns"
+        raise pd.errors.InvalidColumnName(msg)
