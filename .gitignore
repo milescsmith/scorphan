@@ -164,5 +164,9 @@ cython_debug/
 **/*.h5mu
 **/*.h5
 **/*.h5ad
-# **/*.ipynb
+**/*.ipynb
 GSEA_results/
+**/*.h5
+**/*.h5mu
+.vscode/
+**/typings

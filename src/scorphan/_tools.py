@@ -1,5 +1,19 @@
 # fuck pyright is so goddamned stupid about some things
 
+import os
+from pathlib import Path
+import anndata as ad
+import matplotlib.pyplot as plt
+import pandas as pd
+import scanpy as sc
+import scorphan as so
+import tiledbsoma.io
+import orjson
+import numpy as np
+import scvi
+import torch
+from collections.abc import Iterable
+
 import re
 import warnings
 from collections.abc import Sequence
@@ -819,3 +833,104 @@ def check_formula(obs, formula) -> None:
     if len(not_found) > 0:
         msg = f"The terms {', '.join(not_found)} are not present in the anndata object's obs columns"
         raise pd.errors.InvalidColumnName(msg)
+
+def transfer_to_asap(
+    adata: ad.Anndata,
+    label_key: str,
+    source_key: str,
+    source_label: str = "RNA",
+    target_label: str = "ASAP",
+    batch_key: str | None = None,
+    covars: Iterable[str] | str | None = None,
+    hyperparameters: Path | None = None,
+    layer: str | None = None,
+    ):
+    """Use scVI and scANVI to transfer labels from the protein modality of CITE-seq data
+    to the protein modality of ASAP-seq data
+    
+    This requires an anndata object with a raw counts in either the `X` attribute or as a layer.
+    
+    Parameters
+    ----------
+    adata : Anndata
+        Concatenated object with raw protein counts from both the reference RNAseq and ASAPseq modalities.
+    label_key : str
+        Column in `obs` that has the labels to be transferred from the RNAseq to the ASAPseq modality
+    source_key : str
+        Column in `obs` that indicates which assay a cell comes from
+    ref_label : str [default: "RNA"]
+        Value in `source_key` that indicates the cell is from the reference (RNAseq) data
+    target_label : str [default: "ASAP"]
+        Value in `source_key` that indicates the cell is from the query (ASAPseq) data
+    batch_key : str, optional [default: None]
+        Column in `obs` that indicates batch information.
+    covars : Iterable[str] | str, optional [default: None]
+        Column(s) in `obs` containing covariates to control for.
+    hyperparameters : Path, optional [default: None]
+        The path to the `results.json` output from `ray.tune.Tuner`/`scvi.autotune.ModelTuner`
+    layer : str, optional [default: None]
+        Layer containing raw integer counts if the `X` attribute does not.
+    """
+    torch.set_float32_matmul_precision("high")
+    
+    hyperparams = orjson.loads(hyperparams_file.read_bytes())
+    
+    subrna = sc.pp.sample(adata[adata.obs[source_key] == "RNA", :], fraction=0.05, copy=True)
+    subatac = sc.pp.sample(
+        adata[adata.obs[source_key] == "ASAP", :], fraction=0.05, copy=True
+    )
+    refdata = ad.concat([subrna, subatac])
+    
+    scvi.model.SCVI.setup_anndata(
+        refdata,
+        batch_key="source",
+        categorical_covariate_keys=covars,
+        layer="counts",
+    )
+    
+    refined_model = scvi.model.SCVI(
+        adata=refdata,
+        n_hidden=hyperparams["config"]["model_params"]["n_hidden"],
+        n_layers=hyperparams["config"]["model_params"]["n_layers"],
+        n_latent=hyperparams["config"]["model_params"]["n_latent"],
+        dropout_rate=hyperparams["config"]["model_params"]["dropout_rate"],
+    )
+    
+    refined_model.train(
+        max_epochs=int(hyperparams["config"]["train_params"]["max_epochs"]),
+        check_val_every_n_epoch=1,
+        plan_kwargs={
+            "lr": hyperparams["config"]["train_params"]["plan_kwargs"]["lr"],
+            "weight_decay": hyperparams["config"]["train_params"]["plan_kwargs"][
+                "weight_decay"
+            ],
+            "eps": hyperparams["config"]["train_params"]["plan_kwargs"]["eps"],
+        },
+    )
+    
+    scvi.model.SCVI.prepare_query_anndata(querydata, refined_model)
+    type_query = scvi.model.SCVI.load_query_data(
+        querydata,
+        refined_model,
+    )
+    
+    type_model = scvi.model.SCANVI.from_scvi_model(
+        type_query,
+        adata=querydata,
+        labels_key="labels",
+        unlabeled_category="unknown",
+    )
+    type_model.train(
+        max_epochs=int(hyperparams["config"]["train_params"]["max_epochs"]),
+        check_val_every_n_epoch=1,
+        plan_kwargs={
+            "lr": hyperparams["config"]["train_params"]["plan_kwargs"]["lr"],
+            "weight_decay": hyperparams["config"]["train_params"]["plan_kwargs"][
+                "weight_decay"
+            ],
+            "eps": hyperparams["config"]["train_params"]["plan_kwargs"]["eps"],
+        },
+        adversarial_classifier=True,
+    )
+    querydata.obsm["X_scANVI_scVI"] = type_model.get_latent_representation()
+    querydata.obs["scanvi_scvi_predict"] = type_model.predict()
