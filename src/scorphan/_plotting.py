@@ -1,6 +1,31 @@
 import pandas as pd
 import seaborn as sns
 from multiprocessing import cpu_count
+import warnings
+from collections.abc import Sequence
+from enum import Enum
+from typing import Any, Literal
+
+import anndata as ad
+import matplotlib as mpl
+import numpy as np
+import numpy.typing as npt
+import pandas as pd
+import scanpy as sc
+import seaborn as sns
+from scipy.cluster import hierarchy
+
+A_GOOD_LINEWIDTH: float = 0.5
+A_REASONABLE_WIDTH: int = 6
+A_REASONABLE_HEIGHT: int = 3
+
+class AxisVar(int, Enum):
+    cells = 0
+    features = 1
+
+class ScaleMethod(str, Enum):
+    standard_scale = "standard_scale"
+    z_score = "z_score"
 
 def density_heatmap(
     obs_df: pd.DataFrame,
@@ -179,3 +204,205 @@ def plot_marker_motif_enrichment(
         return p, peaks, peaks_mat, marker_peaks, motifs
     else:
         return p
+# adapted from the seaborn.matrix.ClusterGrid class methods `z_score()` and `standard_scale()`
+def scale_data(
+    data2d: pd.DataFrame | npt.NDArray,
+    axis: Literal[0,1] | None = 0,
+    method: ScaleMethod | None = ScaleMethod.standard_scale,
+) -> pd.DataFrame | np.ndarray:
+    """Standarize the mean and variance of the data axis
+
+    Parameters
+    ----------
+    data2d : pandas.DataFrame
+        Data to normalize
+    axis : int
+        Which axis to normalize across. If 0, normalize across rows, if 1,
+        normalize across columns.
+
+    Returns
+    -------
+    normalized : pandas.DataFrame
+        Noramlized data with a mean of 0 and variance of 1 across the
+        specified axis.
+    """
+
+    data_df: npt.ArrayLike = data2d if axis == 1 else np.transpose(data2d)
+
+    match method:
+        case ScaleMethod.standard_scale:
+            subtract = data_df.min()
+            data_df = (data_df - subtract) / (data_df.max() - data_df.min())
+        case ScaleMethod.z_score:
+            data_df = (data_df - data_df.mean()) / data_df.std()
+        case _:
+            msg = "That is not a scaling method I know."
+            raise RuntimeError(msg)
+
+    data_df = data_df if axis == 1 else np.transpose(data_df)
+    return data_df
+
+def prep_plot_df(
+    adata: ad.AnnData,
+    geneset: Sequence[str],
+    group_by: str | None = None,
+    cluster_cols: bool = True,
+) -> pd.DataFrame:
+    if len(adata.var_names.intersection(geneset)) != len(geneset):
+        msg = f"{', '.join([_ for _ in geneset if _ not in adata.var_names.intersection(geneset)])} were not found in the data"
+        warnings.warn(msg, stacklevel=2)
+
+    if group_by is None:
+        plot_df = (
+            sc.get.obs_df(
+                adata, keys=adata.var_names.intersection(geneset).to_list()
+            )
+        )
+    else:
+        plot_df = (
+            sc.get.obs_df(
+                adata, keys=[*adata.var_names.intersection(geneset).to_list(), group_by]
+            )
+            .groupby(group_by)
+            .mean()
+        )
+
+    if cluster_cols and len(plot_df.columns[(np.std(plot_df) == 0)] != 0):
+        msg = f"All values for {', '.join(plot_df.columns[(np.std(plot_df) == 0)])} were the same, which fill cause `sns.clustermap` to crash, so those have been removed"
+        warnings.warn(msg, stacklevel=2)
+        plot_df = plot_df.loc[:, (np.std(plot_df) != 0)]
+
+    return plot_df
+
+def pathway_matrixplot(
+    adata: ad.AnnData,
+    geneset: Sequence[str],
+    group_by: str | None = None,
+    width: int = A_REASONABLE_WIDTH,
+    height: int = A_REASONABLE_HEIGHT,
+    cluster_rows: bool = True,
+    cluster_cols: bool = True,
+    scale_by: AxisVar | None = None,
+    scale_method: ScaleMethod = ScaleMethod.standard_scale,
+    cmap: str = "viridis",
+    linewidths: float = A_GOOD_LINEWIDTH,
+    linecolor: str = "grey",
+    **kwargs,
+) -> None:
+
+    if "groupby" in kwargs and group_by is None:
+        msg = "`groupby` is not a valid parameter - did you mean `group_by`? Assuming you did and carrying on."
+        warnings.warn(msg, stacklevel=2)
+        group_by = kwargs.pop("groupby")
+
+    plot_df = prep_plot_df(adata=adata, geneset=geneset, group_by=group_by, cluster_cols=cluster_cols)
+    match scale_by:
+        case AxisVar.features:
+            scale_axis = 1
+        case AxisVar.cells:
+            scale_axis = 0
+        case _:
+            msg = f"You are attempting to scale by {scale_by}. Please scale either by 'features' or 'cells'. For not, not scaling"
+            warnings.warn(msg, stacklevel=2)
+            scale_axis = None
+    plot_df = scale_data(data2d=plot_df, axis=scale_axis, method=scale_method)
+
+    _ = sns.clustermap(
+        data=plot_df,
+        # standard_scale=standard_scale,
+        figsize=(width, height),
+        row_cluster=cluster_rows,
+        col_cluster=cluster_cols,
+        cmap=cmap,
+        linewidths=linewidths,
+        linecolor=linecolor,
+        robust=True,
+        antialiased=True,
+        **kwargs,
+    )
+
+def feature_hierarchy(
+    adata: ad.AnnData,
+    geneset: Sequence[str],
+    scale_by: AxisVar = AxisVar.features,
+    group_by: str | None = None,
+    method: str = "average",
+    metric: str = "euclidean",
+    scaling_method: ScaleMethod | None = None,
+    plot: bool = False,
+    return_dendro_dict: bool = False,
+    ax: mpl.axes.Axes | None = None,  # pyright: ignore[reportAttributeAccessIssue]
+) -> pd.DataFrame | dict[str, Any] | None:
+    """Given a cell-by-feature dataframe, calculate the grouping of items along the given axis (i.e. how genes cluster at the end of the dendrogram leaves)
+
+    Parameters
+    ----------
+    adata: :class:`anndata.Anndata`
+        Object containing expression values to use in clustering genes
+    geneset: :class:`collections.abc.Sequence[str]`
+        obs column to use as the primary grouping variable
+    scale_by : :class:`AxisVar`
+        How should the data be scaled, by cells or by features? Default: "features"
+    group_by: str, Optional
+        How should the cells be grouped, if they should be grouped. Default: None
+    method: str
+        Method to use when determining feature similarity. Default: "average"
+    metric: str
+        Metric to use in determining feature similary. Default: "euclidean"
+    scaling_method: :class:`ScaleMethod`, Optional
+        If the data is to be scaled, how should it be scaled? Using a "standard_scale" or "z_score"?. Default: None
+    plot: bool 
+        Show the dendrogram produced? Default: False
+    return_dendro_dict: 
+        Instead of a `feature | cluster` :class:`pd.DataFrame`, return the dictionary produced by scipy.hierarchy.dendrogram. Default = False
+    ax: mpl.axes.Axes
+        Axes object to pass when plotting the dendrogram.
+
+    Returns
+    -------
+    By default, :class:`pandas.DataFrame`
+        A dataframe containing percentage of each column_var group made up of each row_var
+        group
+    If `return_dendro_dict` is `True`, a `dict[str, Any]`
+
+    Example
+    -------
+    >>> feature_hierarchy(
+            adata=adata,
+            geneset=["IFIT1", "IFIT2", "SIRT1", "SIRT2", "GAPDH"]
+            axis="features",
+            group_by="leiden",
+            scaling: "standard_scale,
+            plot=False,
+            return_dendo_dict=False,
+            ax=None,
+        )
+    """
+    plot_df: pd.DataFrame = prep_plot_df(adata, geneset=geneset, group_by=group_by)
+
+    if scale_by:
+        match scale_by:
+            case "features":
+                scale_axis = 1
+            case "cells":
+                scale_axis = 0
+            case _:
+                msg = "You are attempting to scale by {standard_scale}. Please scale either by 'features' or 'cells'."
+                warnings.warn(msg, stacklevel=2)
+                scale_axis = None
+        plot_df = scale_data(data2d=plot_df, axis=scale_axis, method=scaling_method)
+
+    if plot:
+        dendro = hierarchy.dendrogram(
+            hierarchy.linkage(np.transpose(plot_df), method=method, metric=metric), no_plot=False, ax=ax
+        )
+        if return_dendro_dict:
+            return dendro
+    else:
+        dendro = hierarchy.dendrogram(
+            hierarchy.linkage(np.transpose(plot_df), method=method, metric=metric), no_plot=True
+        )
+        return pd.DataFrame(
+            {"group": dendro["leaves_color_list"]},
+            index=plot_df.columns.to_series().iloc[dendro["leaves"]],
+        ).reset_index()

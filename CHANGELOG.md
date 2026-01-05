@@ -1,9 +1,18 @@
 # scorphan
 
-## [0.11.0] - 2026-01-05
+## [0.12.0] - 2026-01-05
 
 ### Added
 - plotting of motif accessibility analysis
+
+## [0.11.0] - 2025-12-05
+
+### Added
+- `tl.pseudobulk_differential_expression` for doing pretty much what it says on the tin - groups and pseudobulks cells
+    based on a column in `obs` and then performs differential expression analysis using `PyDESeq2`
+- `pl.pathway_matrixplot` - given a set of genes, such as a pathway, group based on a column in `obs` and plot the 
+    groups mean expression level of the genes within that set
+- `pl.feature_hierarchy` - save as `pathway_matrixplot`, except that it returns the hierarchial clustering data
 
 ## [0.10.0] - 2025-08-08
 
@@ -106,6 +115,7 @@
 
 - Created module
 
+[0.12.0]: https://github.com/milescsmith/scorphan/releases/compare/0.11.0..0.12.0
 [0.11.0]: https://github.com/milescsmith/scorphan/releases/compare/0.10.0..0.11.0
 [0.10.0]: https://github.com/milescsmith/scorphan/releases/compare/0.9.2..0.10.0
 [0.9.2]: https://github.com/milescsmith/scorphan/releases/compare/0.9.1..0.9.2

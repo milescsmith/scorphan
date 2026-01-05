@@ -22,6 +22,11 @@ dependencies = [
     "more-itertools>=10.4.0",
     "umap-learn>=0.5.7",
     "h5py>=3.14.0",
+    "polars>=1.33.1",
+    "formulaic>=1.2.1",
+    "formulaic-contrasts>=1.0.0",
+    "pydeseq2>=0.5.3",
+    "decoupler>=2.1.2",
 ]
 requires-python = ">=3.11"
 readme = "README.md"
@@ -47,3 +52,40 @@ dev = [
     "types-seaborn>=0.13.2.20250516",
     "ty>=0.0.1a16",
 ]
+experiment = [
+    "ipython>=9.7.0",
+    "ipywidgets>=8.1.8",
+    "jupyter-ruff>=0.3.0",
+    "jupyterlab>=4.4.10",
+    "jupyterlab-execute-time>=3.2.0",
+    "stackprinter>=0.2.12",
+]
+gpu = [
+    "rapids-singlecell[rapids12]>=0.13.4",
+]
+
+[tool.basedpyright]
+include = ["src"]
+exclude = ["**/node_modules",
+    "**/__pycache__",
+    "src/experimental",
+    "src/typestubs"
+]
+ignore = ["data/", "tests/"]
+defineConstant = { DEBUG = true }
+# stubPath = "src/stubs"
+
+reportMissingImports = "error"
+reportMissingTypeStubs = false
+
+pythonVersion = "3.12"
+pythonPlatform = "Linux"
+
+executionEnvironments = [
+    { root = "src" }
+]
+
+typeCheckingMode = "standard"
+strictListInference = true
+strictDictionaryInference = true
+analyzeUnannotatedFunctions = false
