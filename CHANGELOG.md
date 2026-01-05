@@ -1,5 +1,10 @@
 # scorphan
 
+## [0.11.0] - 2026-01-05
+
+### Added
+- plotting of motif accessibility analysis
+
 ## [0.10.0] - 2025-08-08
 
 ### Added
@@ -101,6 +106,7 @@
 
 - Created module
 
+[0.11.0]: https://github.com/milescsmith/scorphan/releases/compare/0.10.0..0.11.0
 [0.10.0]: https://github.com/milescsmith/scorphan/releases/compare/0.9.2..0.10.0
 [0.9.2]: https://github.com/milescsmith/scorphan/releases/compare/0.9.1..0.9.2
 [0.9.1]: https://github.com/milescsmith/scorphan/releases/compare/0.9.0..0.9.1
