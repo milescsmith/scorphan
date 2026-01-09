@@ -1,5 +1,5 @@
 import re
-from functools import partial
+from functools import partial, wraps
 from pathlib import Path
 
 import h5py
@@ -11,6 +11,14 @@ import sparse
 from numba import float32, float64, guvectorize, int32, int64, vectorize
 from scipy.sparse import issparse
 from scipy.stats import median_abs_deviation
+
+
+def not_yet_implemented(func):
+    @wraps(func)
+    def __inner(*args, **kwargs):
+        msg = f"`{func.__name__}` is not yet fully implemented and does not work at this time"
+        raise NotImplementedError(msg)
+    return __inner
 
 
 def is_integer_array(arr) -> bool:

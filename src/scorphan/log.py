@@ -1,50 +1,51 @@
 import datetime
-from sys import stderr
+from pathlib import Path
+from sys import stdout
+from typing import TextIO
 
 from loguru import logger
 
+# parent_module = modules[".".join(__name__.split(".")[:-1]) or "__main__"]
 
-def init_logger(verbose: int, save_log: bool = False, msg_format: str | None = None) -> None:
-    logger.enable(__package__)
-    timezone = datetime.datetime.now(datetime.timezone.utc).astimezone().tzinfo
 
-    try:
-        from IPython import get_ipython
-
-        in_notebook = get_ipython() is not None
-    except ImportError:
-        in_notebook = False
-
-    if msg_format is None:
-        if in_notebook:
-            msg_format = "<green>{name}</green>:<red>{function}</red>:<blue>{line}</blue> - <level>{message}</level>"
-        else:
-            msg_format = "{time:YYYY-MM-DD HH:mm:ss}|<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>"
+def init_logger(verbose: int = 0, msg_format: str | None = None, save: bool = False) -> None:
+    timezone = datetime.datetime.now(datetime.UTC).astimezone().tzinfo
 
     match verbose:
         case 3:
-            log_level = "DEBUG"  # catches DEBUG, INFO, WARNING, ERROR, and CRITICAL
+            log_level = "DEBUG"
+            backtrace = True
+            diagnose = True
         case 2:
-            log_level = "INFO"  # catches INFO, WARNING, ERROR, and CRITICAL
+            log_level = "INFO"
+            backtrace = False
+            diagnose = False
         case 1:
-            log_level = "WARNING"  # catches WARNING, ERROR, and CRITICAL
+            log_level = "WARNING"
+            backtrace = False
+            diagnose = False
         case _:
-            log_level = "ERROR"  # Catches ERROR and CRITICAL
+            log_level = "ERROR"
+            backtrace = False
+            diagnose = False
 
-    config = {
-        "handlers": [
-            {"sink": stderr, "format": msg_format, "level": log_level, "filter": __package__},
-        ]
-    }
-    logger.configure(**config)
+    if msg_format is None:
+        if save is True:
+            msg_format = "{name}:{function}:{line} - {message}"
+        else:
+            msg_format = "<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>"
 
-    if save_log:
-        logger.add(
-            sink=f"{__package__}_{datetime.datetime.now(tz=timezone).strftime('%Y-%d-%m--%H-%M-%S')}.log",
-            level=log_level,
-            format="{time:YYYY-MM-DD HH:mm:ss}|{level}|{name}:{function}:{line} - {message}",
-            filter="dsd",
-            backtrace=True,
-            diagnose=True,
-            colorize=False,
-        )
+    output_sink: Path | TextIO = (
+        Path(f"{__package__}_{datetime.datetime.now(tz=timezone).strftime('%d-%m-%Y--%H-%M-%S')}.log")
+        if save
+        else stdout
+    )
+
+    logger.add(
+        sink=output_sink,
+        format=msg_format,
+        level=log_level,
+        backtrace=backtrace,
+        diagnose=diagnose,
+        filter=__package__,
+    )

@@ -1,5 +1,15 @@
 # scorphan
 
+## [0.13.0] - 2026-01-09
+
+### Added
+- A `not_yet_implemented` decorator to disable functions I'm still working on
+
+### Changed
+- Copied latest version of the log submodule from `taudata`
+- Renamed several functions in the `_tools` submodule to mark them as private
+- Decorate `_tools.transfer_to_asap` with `not_yet_implimented`
+
 ## [0.12.0] - 2026-01-05
 
 ### Added

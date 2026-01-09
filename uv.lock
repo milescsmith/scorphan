@@ -1483,6 +1483,19 @@ wheels = [
 ]
 
 [[package]]
+name = "inflect"
+version = "7.5.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "more-itertools" },
+    { name = "typeguard" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/78/c6/943357d44a21fd995723d07ccaddd78023eace03c1846049a2645d4324a3/inflect-7.5.0.tar.gz", hash = "sha256:faf19801c3742ed5a05a8ce388e0d8fe1a07f8d095c82201eb904f5d27ad571f", size = 73751, upload-time = "2024-12-28T17:11:18.897Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/8a/eb/427ed2b20a38a4ee29f24dbe4ae2dafab198674fe9a85e3d6adf9e5f5f41/inflect-7.5.0-py3-none-any.whl", hash = "sha256:2aea70e5e70c35d8350b8097396ec155ffd68def678c7ff97f51aa69c1d92344", size = 35197, upload-time = "2024-12-28T17:11:15.931Z" },
+]
+
+[[package]]
 name = "interface-meta"
 version = "1.3.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1961,6 +1974,26 @@ wheels = [
 ]
 
 [[package]]
+name = "liana"
+version = "1.6.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "anndata" },
+    { name = "docrep" },
+    { name = "mudata" },
+    { name = "numba" },
+    { name = "pandas" },
+    { name = "plotnine" },
+    { name = "scanpy" },
+    { name = "session-info2" },
+    { name = "tqdm" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/61/b6/1c4dc732eac7b8ae1ae41c069c6d19858abfcb685f9d8113c6bebcb09b8c/liana-1.6.1.tar.gz", hash = "sha256:814c9a4316eb527bc769e80967ee975336626321808c2ae9a1bef5b0e9d583ed", size = 28238592, upload-time = "2025-09-28T14:21:11.772Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/20/76/daf7438c24e64e8c8ec79098a80ec9c9ef52acca92583f1ee67dc93ee176/liana-1.6.1-py3-none-any.whl", hash = "sha256:4edc531989799abe57c6ac8d342318e22b125fd498cc246be6a5c535a96b779b", size = 546749, upload-time = "2025-09-28T14:21:10.15Z" },
+]
+
+[[package]]
 name = "libcudf-cu12"
 version = "25.10.0"
 source = { registry = "https://pypi.org/simple" }
@@ -2287,6 +2320,21 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/d7/02/a7fb8b21d4d55ac93cdcde9d3638da5dd0ebdd3a4fed76c7725e10b81cbe/mistune-3.1.4.tar.gz", hash = "sha256:b5a7f801d389f724ec702840c11d8fc48f2b33519102fc7ee739e8177b672164", size = 94588, upload-time = "2025-08-29T07:20:43.594Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/7a/f0/8282d9641415e9e33df173516226b404d367a0fc55e1a60424a152913abc/mistune-3.1.4-py3-none-any.whl", hash = "sha256:93691da911e5d9d2e23bc54472892aff676df27a75274962ff9edc210364266d", size = 53481, upload-time = "2025-08-29T07:20:42.218Z" },
+]
+
+[[package]]
+name = "mizani"
+version = "0.14.3"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "numpy" },
+    { name = "pandas" },
+    { name = "scipy" },
+    { name = "tzdata", marker = "sys_platform == 'emscripten' or sys_platform == 'win32'" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/6d/19/98f2bd61e5441b687e0a5d3b36041981cc032451f2d11472021b040d27fd/mizani-0.14.3.tar.gz", hash = "sha256:c2fb886b3c9e8109be5b8fd21e1130fba1f0a20230a987146240221209fc0ddd", size = 772470, upload-time = "2025-10-30T20:16:53.268Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/5c/d2/4ffcaa27c8a4b4f9ad456da4821c76dfbdfada23e8210cd4d80e1eb3236a/mizani-0.14.3-py3-none-any.whl", hash = "sha256:6d2ca9b1b8366ff85668f0cc1b6095f1e702e26e66f132c4f02a949efa32a688", size = 133433, upload-time = "2025-10-30T20:16:51.218Z" },
 ]
 
 [[package]]
@@ -2911,6 +2959,27 @@ wheels = [
 ]
 
 [[package]]
+name = "omnipath"
+version = "1.0.12"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "attrs" },
+    { name = "docrep" },
+    { name = "inflect" },
+    { name = "packaging" },
+    { name = "pandas" },
+    { name = "requests" },
+    { name = "tqdm" },
+    { name = "typing-extensions" },
+    { name = "urllib3" },
+    { name = "wrapt" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/04/b8/f504706093c149092925c1679aa96aced48af4bde1f73620cc2a6edc7f79/omnipath-1.0.12.tar.gz", hash = "sha256:37e33fd0ab4924a5345deab46868fdc472955c2be136c97ccc8dc5b5ea0ecfb8", size = 2058935, upload-time = "2025-06-26T22:00:09.513Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/d7/ba/704f9e56ae80ef66cf0534e23dac22ada34845f86b5e5b8b3294649d96b6/omnipath-1.0.12-py3-none-any.whl", hash = "sha256:28b85360f2f566e3c1e146560f8d3a5c133e221ce93c63ef62b3c71be9a6b003", size = 51621, upload-time = "2025-06-26T22:00:07.452Z" },
+]
+
+[[package]]
 name = "overrides"
 version = "7.7.0"
 source = { registry = "https://pypi.org/simple" }
@@ -3133,6 +3202,23 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/fe/8b/3c73abc9c759ecd3f1f7ceff6685840859e8070c4d947c93fae71f6a0bf2/platformdirs-4.3.8.tar.gz", hash = "sha256:3d512d96e16bcb959a814c9f348431070822a6496326a4be0911c40b5a74c2bc", size = 21362, upload-time = "2025-05-07T22:47:42.121Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/fe/39/979e8e21520d4e47a0bbe349e2713c0aac6f3d853d0e5b34d76206c439aa/platformdirs-4.3.8-py3-none-any.whl", hash = "sha256:ff7059bb7eb1179e2685604f4aaf157cfd9535242bd23742eadc3c13542139b4", size = 18567, upload-time = "2025-05-07T22:47:40.376Z" },
+]
+
+[[package]]
+name = "plotnine"
+version = "0.15.2"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "matplotlib" },
+    { name = "mizani" },
+    { name = "numpy" },
+    { name = "pandas" },
+    { name = "scipy" },
+    { name = "statsmodels" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/11/14/3adedabe6b8710caee34e4ac9f4edc48218a381594ee1980c323b8866577/plotnine-0.15.2.tar.gz", hash = "sha256:ec2e4cdf2d022eb0dab63ef4aa0017ce0d84c60bd99d55093e72637fddf757e6", size = 6787690, upload-time = "2025-12-12T10:41:37.249Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/58/27/4e6ffe2f095fbfd6285343aa6114903a4cf011564b4f1f2bb706341472df/plotnine-0.15.2-py3-none-any.whl", hash = "sha256:7dc508bc51625b9b9f945e274d8ee4463cf30b280749190a5b707e6828003fa6", size = 1332822, upload-time = "2025-12-12T10:41:34.203Z" },
 ]
 
 [[package]]
@@ -4121,7 +4207,7 @@ wheels = [
 
 [[package]]
 name = "scorphan"
-version = "0.10.0"
+version = "0.11.0"
 source = { editable = "." }
 dependencies = [
     { name = "decoupler" },
@@ -4129,6 +4215,7 @@ dependencies = [
     { name = "formulaic-contrasts" },
     { name = "gseapy" },
     { name = "h5py" },
+    { name = "liana" },
     { name = "loguru" },
     { name = "matplotlib" },
     { name = "more-itertools" },
@@ -4137,6 +4224,7 @@ dependencies = [
     { name = "networkx" },
     { name = "numba" },
     { name = "numpy" },
+    { name = "omnipath" },
     { name = "pandas" },
     { name = "polars" },
     { name = "pydeseq2" },
@@ -4181,6 +4269,7 @@ requires-dist = [
     { name = "formulaic-contrasts", specifier = ">=1.0.0" },
     { name = "gseapy", specifier = ">=1.1.3" },
     { name = "h5py", specifier = ">=3.14.0" },
+    { name = "liana", specifier = ">=1.6.1" },
     { name = "loguru", specifier = ">=0.7.3" },
     { name = "matplotlib", specifier = ">=3.9.1.post1" },
     { name = "more-itertools", specifier = ">=10.4.0" },
@@ -4189,6 +4278,7 @@ requires-dist = [
     { name = "networkx", specifier = ">=3.3" },
     { name = "numba", specifier = ">=0.59.0" },
     { name = "numpy", specifier = ">=2.0.2" },
+    { name = "omnipath", specifier = ">=1.0.12" },
     { name = "pandas", specifier = ">=2.2.3" },
     { name = "polars", specifier = ">=1.33.1" },
     { name = "pydeseq2", specifier = ">=0.5.3" },
@@ -4538,6 +4628,18 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/1e/e4/498c0bed38385d0c8babfe5707fe157700ae698d77dd9a1a8ffaaa97baea/ty-0.0.1a16-py3-none-win32.whl", hash = "sha256:4113a176a8343196d73145668460873d26ccef8766ff4e5287eec2622ce8754d", size = 7460041, upload-time = "2025-07-25T14:00:39.637Z" },
     { url = "https://files.pythonhosted.org/packages/af/9e/5a8a690a5542405fd20cab6b0aa97a5af76de1e39582de545fac48e53f3a/ty-0.0.1a16-py3-none-win_amd64.whl", hash = "sha256:508ba4c50bc88f1a7c730d40f28d6c679696ee824bc09630c7c6763911de862a", size = 8074666, upload-time = "2025-07-25T14:00:41.061Z" },
     { url = "https://files.pythonhosted.org/packages/dc/53/2a2eb8cc22b3e12d2040ed78d98842d0dddfa593d824b7ff60e30afe6f41/ty-0.0.1a16-py3-none-win_arm64.whl", hash = "sha256:36f53e430b5e0231d6b6672160c981eaf7f9390162380bcd1096941b2c746b5d", size = 7612948, upload-time = "2025-07-25T14:00:42.458Z" },
+]
+
+[[package]]
+name = "typeguard"
+version = "4.4.4"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/c7/68/71c1a15b5f65f40e91b65da23b8224dad41349894535a97f63a52e462196/typeguard-4.4.4.tar.gz", hash = "sha256:3a7fd2dffb705d4d0efaed4306a704c89b9dee850b688f060a8b1615a79e5f74", size = 75203, upload-time = "2025-06-18T09:56:07.624Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/1b/a9/e3aee762739c1d7528da1c3e06d518503f8b6c439c35549b53735ba52ead/typeguard-4.4.4-py3-none-any.whl", hash = "sha256:b5f562281b6bfa1f5492470464730ef001646128b180769880468bd84b68b09e", size = 34874, upload-time = "2025-06-18T09:56:05.999Z" },
 ]
 
 [[package]]

@@ -1,6 +1,6 @@
 [project]
 name = "scorphan"
-version = "0.11.0"
+version = "0.13.0"
 description = "Collection of orphan helper fuctions for single cell omics data analysis"
 authors = [
     {name = "Miles Smith", email = "miles-smith@omrf.org"},
@@ -27,6 +27,8 @@ dependencies = [
     "formulaic-contrasts>=1.0.0",
     "pydeseq2>=0.5.3",
     "decoupler>=2.1.2",
+    "liana>=1.6.1",
+    "omnipath>=1.0.12",
 ]
 requires-python = ">=3.11"
 readme = "README.md"

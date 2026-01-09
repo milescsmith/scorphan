@@ -1,9 +1,8 @@
-import pandas as pd
-import seaborn as sns
-from multiprocessing import cpu_count
 import warnings
 from collections.abc import Sequence
 from enum import Enum
+from multiprocessing import cpu_count
+from pathlib import Path
 from typing import Any, Literal
 
 import anndata as ad
@@ -13,6 +12,7 @@ import numpy.typing as npt
 import pandas as pd
 import scanpy as sc
 import seaborn as sns
+from loguru import logger
 from scipy.cluster import hierarchy
 
 A_GOOD_LINEWIDTH: float = 0.5
@@ -139,11 +139,11 @@ def plot_marker_motif_enrichment(
         True
     """
     import snapatac2 as snap
-    
+
     if n_jobs == -1:
         logger.info("setting n_jobs")
         n_jobs = cpu_count()
-    
+
     logger.info("matching genome")
     match genome:
         case ("hg38" | "GRCh38" | "human"):
@@ -270,7 +270,7 @@ def prep_plot_df(
     if cluster_cols and len(plot_df.columns[(np.std(plot_df) == 0)] != 0):
         msg = f"All values for {', '.join(plot_df.columns[(np.std(plot_df) == 0)])} were the same, which fill cause `sns.clustermap` to crash, so those have been removed"
         warnings.warn(msg, stacklevel=2)
-        plot_df = plot_df.loc[:, (np.std(plot_df) != 0)]
+        plot_df = plot_df.loc[:, [(np.std(plot_df) != 0)]]
 
     return plot_df
 

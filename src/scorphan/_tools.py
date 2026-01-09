@@ -48,7 +48,7 @@ from rich.progress import Progress
 # from scanpy.tools._utils import _choose_representation
 from scipy.sparse import issparse
 
-from scorphan._utils import is_integer_array
+from scorphan._utils import is_integer_array, not_yet_implemented
 from scorphan.log import init_logger
 
 MAX_PVAL: Final[float] = 0.05
@@ -700,7 +700,7 @@ def pseudobulk_differential_expression(
     if n_cpus == -1:
         n_cpus = cpu_count()
 
-    check_formula(adata.obs, design)
+    _check_formula(adata.obs, design)
 
     if cell_type_of_interest:
         if cell_type_obs_col is None:
@@ -735,14 +735,14 @@ def pseudobulk_differential_expression(
         )
         mu.pp.filter_var(subset_bulked, var=stat, func=lambda x: ~x)
 
-    if not full_rank_design(subset_bulked, design):
+    if not _full_rank_design(subset_bulked, design):
         msg = (
             "One or more terms in the design formula is causing the design matrix to not be full rank. "
             "Attempting to correct an issue with `decoupler` changing continuous variables to categorical..."
         )
         warnings.warn(msg, stacklevel=2)
         try:
-            subset_bulked.obs = fix_continuous_vars(subset_bulked.obs, adata.obs, design)
+            subset_bulked.obs = _fix_continuous_vars(subset_bulked.obs, adata.obs, design)
         except FormulaicError as err:
             msg = "Something is wrong with the design formula. Stopping as PyDESeq2 WILL fail"
             raise FormulaicError(msg) from err
@@ -799,7 +799,7 @@ def pseudobulk_differential_expression(
 
 
 # based on the version in PyDESeq2. Copied and not imported because it is a private method
-def full_rank_design(adata: ad.AnnData, formula: str) -> bool:
+def _full_rank_design(adata: ad.AnnData, formula: str) -> bool:
     """Check that the design matrix has full column rank."""
     design_matrix = FormulaicContrasts(data=adata.obs, design=formula).design_matrix
     rank = np.linalg.matrix_rank(A=design_matrix)
@@ -811,7 +811,7 @@ def full_rank_design(adata: ad.AnnData, formula: str) -> bool:
         return True
 
 
-def extract_terms(formula: str) -> list[str]:
+def _extract_terms(formula: str) -> list[str]:
     return [
         token.token
         for token in DefaultFormulaParser().get_tokens(formula)
@@ -819,21 +819,22 @@ def extract_terms(formula: str) -> list[str]:
     ]
 
 
-def fix_continuous_vars(obs, prev_obs, formula) -> pd.DataFrame:
-    design_terms = extract_terms(formula)
+def _fix_continuous_vars(obs, prev_obs, formula) -> pd.DataFrame:
+    design_terms = _extract_terms(formula)
     for term in design_terms:
         if (obs[term].dtype == "category") & (obs[term].dtype != prev_obs[term].dtype):
             obs[term] = obs[term].astype(prev_obs[term].dtype)
     return obs
 
 
-def check_formula(obs, formula) -> None:
-    design_terms = extract_terms(formula)
+def _check_formula(obs, formula) -> None:
+    design_terms = _extract_terms(formula)
     not_found = [term for term in design_terms if term not in obs.columns]
     if len(not_found) > 0:
         msg = f"The terms {', '.join(not_found)} are not present in the anndata object's obs columns"
         raise pd.errors.InvalidColumnName(msg)
 
+@not_yet_implemented
 def transfer_to_asap(
     adata: ad.Anndata,
     label_key: str,
@@ -847,9 +848,9 @@ def transfer_to_asap(
     ):
     """Use scVI and scANVI to transfer labels from the protein modality of CITE-seq data
     to the protein modality of ASAP-seq data
-    
+
     This requires an anndata object with a raw counts in either the `X` attribute or as a layer.
-    
+
     Parameters
     ----------
     adata : Anndata
@@ -872,22 +873,22 @@ def transfer_to_asap(
         Layer containing raw integer counts if the `X` attribute does not.
     """
     torch.set_float32_matmul_precision("high")
-    
+
     hyperparams = orjson.loads(hyperparams_file.read_bytes())
-    
+
     subrna = sc.pp.sample(adata[adata.obs[source_key] == "RNA", :], fraction=0.05, copy=True)
     subatac = sc.pp.sample(
         adata[adata.obs[source_key] == "ASAP", :], fraction=0.05, copy=True
     )
     refdata = ad.concat([subrna, subatac])
-    
+
     scvi.model.SCVI.setup_anndata(
         refdata,
         batch_key="source",
         categorical_covariate_keys=covars,
         layer="counts",
     )
-    
+
     refined_model = scvi.model.SCVI(
         adata=refdata,
         n_hidden=hyperparams["config"]["model_params"]["n_hidden"],
@@ -895,7 +896,7 @@ def transfer_to_asap(
         n_latent=hyperparams["config"]["model_params"]["n_latent"],
         dropout_rate=hyperparams["config"]["model_params"]["dropout_rate"],
     )
-    
+
     refined_model.train(
         max_epochs=int(hyperparams["config"]["train_params"]["max_epochs"]),
         check_val_every_n_epoch=1,
@@ -907,13 +908,13 @@ def transfer_to_asap(
             "eps": hyperparams["config"]["train_params"]["plan_kwargs"]["eps"],
         },
     )
-    
+
     scvi.model.SCVI.prepare_query_anndata(querydata, refined_model)
     type_query = scvi.model.SCVI.load_query_data(
         querydata,
         refined_model,
     )
-    
+
     type_model = scvi.model.SCANVI.from_scvi_model(
         type_query,
         adata=querydata,
