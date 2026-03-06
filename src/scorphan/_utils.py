@@ -1,6 +1,7 @@
 import re
 from functools import partial, wraps
 from pathlib import Path
+from typing import Any
 
 import h5py
 import numpy as np
@@ -193,3 +194,48 @@ def repair_anndataset(
                 shape=(backing_files.shape[0],),
                 data=backing_files[col].to_list(),
             )
+
+# Source - https://stackoverflow.com/a/73686304
+# Posted by Alex44, modified by community. See post 'Timeline' for change history
+# Retrieved 2026-02-05, License - CC BY-SA 4.0
+
+def h5_tree(val: h5py.Group, pre=""):
+    items = len(val)
+    for key, val in val.items():
+        items -= 1
+        if isinstance(val, h5py.Group):
+            if items == 0:
+                print(f"{pre}└── {key}")
+                h5_tree(val, f"{pre}    ")
+            else:
+                print(f"{pre}├── {key}")
+                h5_tree(val, f"{pre}│   ")
+        elif items == 0:
+            try:
+                print(f"{pre}└── {key} ({len(val)})")
+            except TypeError:
+                print(f"{pre}└── {key} (scalar)")
+        else:
+            try:
+                print(f"{pre}├── {key} ({len(val)})")
+            except TypeError:
+                print(f"{pre}├── {key} (scalar)")
+
+
+class ArgumentError(Exception):
+    pass
+
+def make_list_if_not(obj: Any) -> list[Any]:
+    """make_list_if_not: is it a list? Make it one!
+
+    Parameters
+    ----------
+    obj : Any
+        Any ol' thing you want to test to see if it is a list and, if not,
+        make it one
+
+    Returns
+    -------
+    list[Any]
+    """
+    return obj if isinstance(obj, Sequence) else [obj]
