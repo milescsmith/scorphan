@@ -1,5 +1,15 @@
 # scorphan
 
+## [0.14.0] - 2026-03-06
+
+### Added
+- `._tools.pseudobulk_and_correlate` to do just that between RNA/CITE-seq and Olink
+- A couple of helper functions to `.utils`
+
+### Changed
+- Replaced `orjson` with `msgspec`
+- Fixed up/reformatted some docstrings
+
 ## [0.13.0] - 2026-01-09
 
 ### Added
@@ -125,6 +135,8 @@
 
 - Created module
 
+[0.14.0]: https://github.com/milescsmith/scorphan/releases/compare/0.13.0..0.14.0
+[0.13.0]: https://github.com/milescsmith/scorphan/releases/compare/0.12.0..0.13.0
 [0.12.0]: https://github.com/milescsmith/scorphan/releases/compare/0.11.0..0.12.0
 [0.11.0]: https://github.com/milescsmith/scorphan/releases/compare/0.10.0..0.11.0
 [0.10.0]: https://github.com/milescsmith/scorphan/releases/compare/0.9.2..0.10.0

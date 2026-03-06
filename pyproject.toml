@@ -1,6 +1,6 @@
 [project]
 name = "scorphan"
-version = "0.13.0"
+version = "0.14.0"
 description = "Collection of orphan helper fuctions for single cell omics data analysis"
 authors = [
     {name = "Miles Smith", email = "miles-smith@omrf.org"},
@@ -29,6 +29,8 @@ dependencies = [
     "decoupler>=2.1.2",
     "liana>=1.6.1",
     "omnipath>=1.0.12",
+    "bioframe>=0.8.0",
+    "msgspec>=0.20.0",
 ]
 requires-python = ">=3.11"
 readme = "README.md"
@@ -53,6 +55,9 @@ dev = [
     "pandas-stubs>=2.2.3.250527",
     "types-seaborn>=0.13.2.20250516",
     "ty>=0.0.1a16",
+]
+doc = [
+    "sphinx-autodoc2>=0.5.0",
 ]
 experiment = [
     "ipython>=9.7.0",

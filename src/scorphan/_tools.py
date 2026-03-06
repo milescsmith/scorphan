@@ -1,22 +1,10 @@
 # fuck pyright is so goddamned stupid about some things
 
-import os
-from pathlib import Path
-import anndata as ad
-import matplotlib.pyplot as plt
-import pandas as pd
-import scanpy as sc
-import scorphan as so
-import tiledbsoma.io
-import orjson
-import numpy as np
-import scvi
-import torch
-from collections.abc import Iterable
-
+# TODO: either break up this module or use that delayed import module to make this less painful
+# pulling in torch is killing import speed
 import re
 import warnings
-from collections.abc import Sequence
+from collections.abc import Iterable, Sequence
 from multiprocessing import cpu_count
 
 # from copy import deepcopy
@@ -28,11 +16,16 @@ import decoupler as dc
 import gseapy as gp
 import h5py
 import matplotlib.pyplot as plt
+import msgspec
 import muon as mu
 import networkx as nx
 import numpy as np
+import numpy.testing as npt
 import pandas as pd
 import scanpy as sc
+import scipy as sp
+import scvi
+import torch
 from anndata import AnnData
 from formulaic.errors import FormulaicError
 from formulaic.parser import DefaultFormulaParser
@@ -50,10 +43,11 @@ from scipy.sparse import issparse
 
 from scorphan._utils import is_integer_array, not_yet_implemented
 from scorphan.log import init_logger
+from scorphan.utils import ArgumentError, make_list_if_not
 
 MAX_PVAL: Final[float] = 0.05
 
-
+@not_yet_implemented
 def muon_paga_umap(
     mdata: AnnData,
     min_dist: float = 0.5,
@@ -71,6 +65,46 @@ def muon_paga_umap(
     method: Literal["umap", "rapids"] = "umap",
     neighbors_key: str = "neighbors",
 ) -> None:
+    """_summary_
+
+    Parameters
+    ----------
+    mdata : AnnData
+        _description_
+    min_dist : float, optional
+        _description_, by default 0.5
+    spread : float, optional
+        _description_, by default 1.0
+    n_components : int, optional
+        _description_, by default 2
+    maxiter : int | None, optional
+        _description_, by default None
+    alpha : float, optional
+        _description_, by default 1.0
+    gamma : float, optional
+        _description_, by default 1.0
+    negative_sample_rate : int, optional
+        _description_, by default 5
+    init_pos : Literal[&quot;spectral&quot;, &quot;paga&quot;, &quot;random&quot;], optional
+        _description_, by default "paga"
+    random_state : int, optional
+        _description_, by default 42
+    a : float | None, optional
+        _description_, by default None
+    b : float | None, optional
+        _description_, by default None
+    copy : bool, optional
+        _description_, by default False
+    method : Literal[&quot;umap&quot;, &quot;rapids&quot;], optional
+        _description_, by default "umap"
+    neighbors_key : str, optional
+        _description_, by default "neighbors"
+
+    Raises
+    ------
+    NotImplementedError
+        _description_
+    """
     msg = "This function does not currently work and is disabled for the time being."
     logger.error(msg)
     raise NotImplementedError(msg)
@@ -405,7 +439,7 @@ def umap(
     alpha: float = 1.0,
     gamma: float = 1.0,
     negative_sample_rate: int = 5,
-    init_pos: Literal["spectral", "random"] | np.ndarray | None = "spectral",
+    init_pos: Literal["spectral", "random"] | npt.NDarray | None = "spectral",
     random_state: int | np.random.RandomState | None = 42,
     a: float | None = None,
     b: float | None = None,
@@ -423,47 +457,61 @@ def umap(
     References:
         McInnes et al, 2018 (`arXiv:1802.03426` <https://arxiv.org/abs/1802.03426>`_)
 
-    Args:
-        mdata: MuData object. Multimodal nearest neighbor search must have already
-            been performed.
-        min_dist: The effective minimum distance between embedded points. Smaller
-            values will result in a more clustered/clumped embedding where nearby points
-            on the manifold are drawn closer together, while larger values will result
-            on a more even dispersal of points. The value should be set relative to
-            the ``spread`` value, which determines the scale at which embedded points
-            will be spread out. The default of in the ``umap-learn`` package is 0.1.
-        spread: The effective scale of embedded points. In combination with ``min_dist``
-            this determines how clustered/clumped the embedded points are.
-        n_components: The number of dimensions of the embedding.
-        maxiter: The number of iterations (epochs) of the optimization. Called ``n_epochs``
-            in the original UMAP.
-        alpha: The initial learning rate for the embedding optimization.
-        gamma: Weighting applied to negative samples in low dimensional embedding
-            optimization. Values higher than one will result in greater weight
-            being given to negative samples.
-        negative_sample_rate: The number of negative edge/1-simplex samples to use per
-            positive edge/1-simplex sample in optimizing the low dimensional embedding.
-        init_pos: How to initialize the low dimensional embedding. Called ``init`` in the
-            original UMAP. Options are:
-            - 'spectral': use a spectral embedding of the graph.
-            - 'random': assign initial embedding positions at random.
-            - A numpy array of initial embedding positions.
-        random_state: Random seed.
-        a: More specific parameters controlling the embedding. If ``None`` these
-            values are set automatically as determined by ``min_dist`` and
-            ``spread``.
-        b: More specific parameters controlling the embedding. If ``None`` these
-            values are set automatically as determined by ``min_dist`` and
-            ``spread``.
-        copy: Return a copy instead of writing to mdata.
-        method: Use the original 'umap' implementation, or 'rapids' (experimental, GPU only)
-        neighbors_key: If not specified, umap looks in ``.uns['neighbors']`` for neighbors
-            settings and ``.obsp['connectivities']`` for connectivities (default storage
-            places for ``pp.neighbors``). If specified, umap looks ``.uns[neighbors_key]``
-            for neighbors settings and ``.obsp[.uns[neighbors_key]['connectivities_key']]``
+    Parameters
+    ----------
+    mdata: mu.MuData
+        Multimodal nearest neighbor search must have already been performed.
+    min_dist : float, default=5
+        The effective minimum distance between embedded points. Smaller
+        values will result in a more clustered/clumped embedding where nearby points
+        on the manifold are drawn closer together, while larger values will result
+        on a more even dispersal of points. The value should be set relative to
+        the ``spread`` value, which determines the scale at which embedded points
+        will be spread out.
+    spread : float, default=1.0
+        The effective scale of embedded points. In combination with ``min_dist``
+        this determines how clustered/clumped the embedded points are.
+    n_components : int, default=2
+        The number of dimensions of the embedding
+    maxiter : int | None, default=None
+        The number of iterations (epochs) of the optimization. Called ``n_epochs`` in the original UMAP.
+    alpha : float, default=1.0
+        The initial learning rate for the embedding optimization.
+    gamma : float, default=1.0
+        Weighting applied to negative samples in low dimensional embedding optimization. Values higher than one will
+        result in greater weight being given to negative samples.
+    negative_sample_rate : int, default=5
+        The number of negative edge/1-simplex samples to use per
+        positive edge/1-simplex sample in optimizing the low dimensional embedding.
+    init_pos : Literal["spectral", "random"] | npt.NDarray | None, default="spectral"
+        How to initialize the low dimensional embedding. Called ``init`` in the original UMAP. Options are:
+        - 'spectral': use a spectral embedding of the graph.
+        - 'random': assign initial embedding positions at random.
+        - A numpy array of initial embedding positions.
+    random_state :
+        Random seed.
+    a :
+        More specific parameters controlling the embedding. If ``None`` these
+        values are set automatically as determined by ``min_dist`` and
+        ``spread``.
+    b :
+        More specific parameters controlling the embedding. If ``None`` these
+        values are set automatically as determined by ``min_dist`` and
+        ``spread``.
+    copy :
+        Return a copy instead of writing to mdata.
+    method :
+        Use the original 'umap' implementation, or 'rapids' (experimental, GPU only)
+    neighbors_key :
+        If not specified, umap looks in ``.uns['neighbors']`` for neighbors
+        settings and ``.obsp['connectivities']`` for connectivities (default storage
+        places for ``pp.neighbors``). If specified, umap looks ``.uns[neighbors_key]``
+        for neighbors settings and ``.obsp[.uns[neighbors_key]['connectivities_key']]``
             for connectivities.
-    Returns: Depending on ``copy``, returns or updates ``adata`` with the following fields.
 
+    Returns
+    -------
+    Depending on ``copy``, returns or updates ``adata`` with the following fields.
         **X_umap** : ``mdata.obsm`` field holding UMAP coordinates of data.
     """
     if method == "rapids":
@@ -567,13 +615,13 @@ def extract_h5_obs(h5_file: Path) -> pd.DataFrame:
 
     Parameters
     ---------
-    h5_file : :class:`Path`
+    h5_file : Path
         A Path object pointing to the Anndata/MuData file with the obs attribute of interest
 
     Returns
     -------
 
-    :class:`pandas.DataFrame`
+    pandas.DataFrame
     """
     with h5py.File(h5_file) as f:
         obs_h5_dict = dict(f["obs"].items())
@@ -874,7 +922,7 @@ def transfer_to_asap(
     """
     torch.set_float32_matmul_precision("high")
 
-    hyperparams = orjson.loads(hyperparams_file.read_bytes())
+    hyperparams = msgspec.json.decode(hyperparameters.read_text())
 
     subrna = sc.pp.sample(adata[adata.obs[source_key] == "RNA", :], fraction=0.05, copy=True)
     subatac = sc.pp.sample(
@@ -935,3 +983,145 @@ def transfer_to_asap(
     )
     querydata.obsm["X_scANVI_scVI"] = type_model.get_latent_representation()
     querydata.obs["scanvi_scvi_predict"] = type_model.predict()
+
+
+
+def pseudobulk_and_correlate(
+    adata: ad.AnnData,
+    olink: ad.AnnData,
+    cell_type_col: str,
+    cell_types: str | list[str],
+    group_col: str,
+    groups: str | list[str],
+    sample_col: str,
+    layer: str = "counts",
+    filter_highly_variable: bool = True,
+    normalize_bulk: bool = True,
+    scale_bulk: bool = False,
+    remove_nulls: bool = False,
+    axis: int=0,
+    nan_policy: Literal["propagate", "raise", "omit"]="propagate",
+    alternative: Literal["two-sided", "less", "greater"]="two-sided"
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """pseudobulk_and_correlate
+    For a given cell_type and grouping, pseudobulk by sample and then perform a 
+    spearman's correlation calculation comparing the bulked adata to the olink data
+
+    NOTE: if there are no overlapping samples, the function aborts and just returns `None`
+
+    Parameters
+    ----------
+    adata : ad.AnnData
+        Source single-cell RNA-seq AnnData object to use for correlation analysis
+    olink : ad.AnnData
+        Olink data for correlation analysis. MUST have at least some overlapping samples
+        for each cell_type/group combination
+    cell_type_col : str
+        Column in `adata.obs` containing the cell type of interest
+    cell_types : str | list[str]
+        Particular cell type(s) to include in pseudobulked object
+    group_col : str
+        Column in `adata.obs` containing the groups of interest
+    groups : str | list[str]
+        Particular group(s) to include in pseudobulked object
+    sample_col : str
+        Column in `adata.obs` containing sample names. Used with grouping cells 
+        during pseudobulking
+    layer : str, default="counts"
+        Layer in `adata.layers` to take data from during pseudobulking
+    filter_highly_variable : bool, default=True
+        If `True`, use the information in `adata.var["highly_variable"]` to filter genes.
+    normalize_bulk : bool, default=True
+        If `True`, normalize and log-transform the pseudobulked data
+    scale_bulk : bool, default=False
+        If `True`, scale the pseudobulked data
+    remove_nulls : bool, default=False
+        If `True`, remove and RNA or Olink features that have all null values
+    axis : int, default=0
+        Passed to `scipy.stats.pearsonr`
+    nan_policy : Literal["propagate", "raise", "omit"]='propagate'
+        Passed to `scipy.stats.pearsonr`
+    alternative : Literal["two-sided", "less", "greater"]="two-sided"
+        Passed to `scipy.stats.pearsonr`
+
+    Returns
+    -------
+    correlation coefficients : pd.DataFrame
+
+    associated p-values : pd.DataFrame
+    """
+    cell_types = make_list_if_not(cell_types)
+    groups = make_list_if_not(groups)
+
+    adata_subset = adata[
+        adata.obs[group_col].isin([groups])
+        & (adata.obs[cell_type_col].isin([cell_types])),
+        :,
+    ]
+    pdata = dc.pp.pseudobulk(
+        adata_subset, sample_col="sample_name", groups_col=None, layer=layer
+    )
+
+    if filter_highly_variable:
+        if "highly_variable" in adata.var.columns:
+            pdata = pdata[
+                :, pdata.var_names[pdata.var["highly_variable"]]
+            ].copy()
+        else:
+            msg = "A True value was passed to the `highly_variable` argument, but no `highly_variable` column is present in `adata`. Aborting."
+            raise ArgumentError(msg)
+
+    if normalize_bulk:
+        sc.pp.normalize_total(pdata, target_sum=1e4)
+        sc.pp.log1p(pdata)
+    if scale_bulk:
+        sc.pp.scale(pdata, max_value=10)
+
+    rna_df = pdata.to_df()
+
+    olink_df = olink.to_df()
+
+    # one dimension of the matrices can be different. In this case, we need to subset on common samples
+    common_indices = rna_df.index.intersection(olink_df.index)
+    rna_df = rna_df.loc[common_indices,:]
+    olink_df = olink_df.loc[common_indices,:]
+
+    corr_arr, p_arr = sp.stats.spearmanr(a=rna_df, b=olink_df, axis=axis, nan_policy=nan_policy, alternative=alternative)
+    corr_df = pd.DataFrame(
+        corr_arr,
+        index=np.hstack(
+            [
+                rna_df.columns.to_series().add_suffix("_rna").index,
+                olink_df.columns.to_series().add_suffix("_olink").index,
+            ]
+        ),
+        columns=np.hstack(
+            [
+                rna_df.columns.to_series().add_suffix("_rna").index,
+                olink_df.columns.to_series().add_suffix("_olink").index,
+            ]
+        ),
+    )
+
+    p_df = pd.DataFrame(
+        p_arr,
+        index=np.hstack(
+            [
+                rna_df.columns.to_series().add_suffix("_rna").index,
+                olink_df.columns.to_series().add_suffix("_olink").index,
+            ]
+        ),
+        columns=np.hstack(
+            [
+                rna_df.columns.to_series().add_suffix("_rna").index,
+                olink_df.columns.to_series().add_suffix("_olink").index,
+            ]
+        ),
+    )
+
+    if remove_nulls:
+        corr_df = corr_df.loc[
+            ~pd.isnull(corr_df).all(axis=1), ~pd.isnull(corr_df).all(axis=0)
+        ]
+
+    return (corr_df, p_df)
