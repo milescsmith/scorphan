@@ -1,4 +1,5 @@
 import re
+from collections.abc import Sequence
 from functools import partial, wraps
 from pathlib import Path
 from typing import Any
@@ -9,10 +10,13 @@ import numpy.typing as npt
 import polars as pl
 import scipy as sp
 import sparse
+from loguru import logger
 from numba import float32, float64, guvectorize, int32, int64, vectorize
+from rich.console import Console
 from scipy.sparse import issparse
 from scipy.stats import median_abs_deviation
 
+console = Console()
 
 def not_yet_implemented(func):
     @wraps(func)
@@ -55,6 +59,18 @@ def value_percentile(arr: np.ndarray) -> np.ndarray:
     fastmath=True,
 )
 def above_below(x: float, lower: float, upper: float) -> float:
+    """
+    Parameters
+    ----------
+    x : float
+
+    lower : float
+
+    upper : float
+
+    Returns
+    -------
+    """
     if x < lower:
         return lower
     elif x > upper:
@@ -81,8 +97,8 @@ def percentile_trim_cols(
 
 @guvectorize([(float64[:, :], float64, float64, float64[:, :])], "(m,n),(),()->(m,n)")
 def percentile_trim_rows(
-    arr: npt.NDArray, lower: float = 0.10, upper: float = 0.99, res: npt.NDArray | None = None
-) -> npt.NDArray:
+    arr: npt.ArrayLike, lower: float = 0.10, upper: float = 0.99, res: npt.ArrayLike | None = None
+) -> npt.ArrayLike:
     """
     Row-by-row, calculate the lower and upper percentiles and then use those to replace values that are
     below or above them, respectively
@@ -201,23 +217,23 @@ def repair_anndataset(
 
 def h5_tree(val: h5py.Group, pre=""):
     items = len(val)
-    for key, val in val.items():
+    for key, _val in val.items():
         items -= 1
-        if isinstance(val, h5py.Group):
+        if isinstance(_val, h5py.Group):
             if items == 0:
                 print(f"{pre}└── {key}")
-                h5_tree(val, f"{pre}    ")
+                h5_tree(_val, f"{pre}    ")
             else:
                 print(f"{pre}├── {key}")
-                h5_tree(val, f"{pre}│   ")
+                h5_tree(_val, f"{pre}│   ")
         elif items == 0:
             try:
-                print(f"{pre}└── {key} ({len(val)})")
+                print(f"{pre}└── {key} ({len(_val)})")
             except TypeError:
                 print(f"{pre}└── {key} (scalar)")
         else:
             try:
-                print(f"{pre}├── {key} ({len(val)})")
+                print(f"{pre}├── {key} ({len(_val)})")
             except TypeError:
                 print(f"{pre}├── {key} (scalar)")
 

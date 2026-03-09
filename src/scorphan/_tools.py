@@ -16,7 +16,8 @@ import decoupler as dc
 import gseapy as gp
 import h5py
 import matplotlib.pyplot as plt
-import msgspec
+
+# import msgspec
 import muon as mu
 import networkx as nx
 import numpy as np
@@ -24,8 +25,9 @@ import numpy.testing as npt
 import pandas as pd
 import scanpy as sc
 import scipy as sp
-import scvi
-import torch
+
+# import scvi
+# import torch
 from anndata import AnnData
 from formulaic.errors import FormulaicError
 from formulaic.parser import DefaultFormulaParser
@@ -41,9 +43,8 @@ from rich.progress import Progress
 # from scanpy.tools._utils import _choose_representation
 from scipy.sparse import issparse
 
-from scorphan._utils import is_integer_array, not_yet_implemented
+from scorphan._utils import ArgumentError, is_integer_array, make_list_if_not, not_yet_implemented
 from scorphan.log import init_logger
-from scorphan.utils import ArgumentError, make_list_if_not
 
 MAX_PVAL: Final[float] = 0.05
 
@@ -410,7 +411,7 @@ def GSEApy_process(
     for node in nodes.index:
         if node not in graph.nodes():
             graph.add_node(node)
-    fig, ax = plt.subplots(figsize=(12, 12))
+    _, ax = plt.subplots(figsize=(12, 12))
 
     # init node cooridnates
     pos = nx.layout.spiral_layout(graph)
@@ -439,7 +440,7 @@ def umap(
     alpha: float = 1.0,
     gamma: float = 1.0,
     negative_sample_rate: int = 5,
-    init_pos: Literal["spectral", "random"] | npt.NDarray | None = "spectral",
+    init_pos: Literal["spectral", "random"] | npt.ArrayLike | None = "spectral",
     random_state: int | np.random.RandomState | None = 42,
     a: float | None = None,
     b: float | None = None,
@@ -483,7 +484,7 @@ def umap(
     negative_sample_rate : int, default=5
         The number of negative edge/1-simplex samples to use per
         positive edge/1-simplex sample in optimizing the low dimensional embedding.
-    init_pos : Literal["spectral", "random"] | npt.NDarray | None, default="spectral"
+    init_pos : Literal["spectral", "random"] | npt.ArrayLike | None, default="spectral"
         How to initialize the low dimensional embedding. Called ``init`` in the original UMAP. Options are:
         - 'spectral': use a spectral embedding of the graph.
         - 'random': assign initial embedding positions at random.
@@ -779,7 +780,7 @@ def pseudobulk_differential_expression(
         ["below_zero_thresh", "below_deviance_thresh"], [np.sum, np.std], [min_sum_counts, min_std], strict=True
     ):
         subset_bulked.var[stat] = (
-            func(exprs, axis=0).where(lambda x: x < thresh).replace({np.nan: False, 0.0: True})[subset_bulked.var_names]
+            func(exprs, axis=0).where(lambda x: x < thresh).replace({np.nan: False, 0.0: True})[subset_bulked.var_names]  # noqa: B023
         )
         mu.pp.filter_var(subset_bulked, var=stat, func=lambda x: ~x)
 
@@ -894,7 +895,7 @@ def transfer_to_asap(
     hyperparameters: Path | None = None,
     layer: str | None = None,
     ):
-    """Use scVI and scANVI to transfer labels from the protein modality of CITE-seq data
+    r"""Use scVI and scANVI to transfer labels from the protein modality of CITE-seq data
     to the protein modality of ASAP-seq data
 
     This requires an anndata object with a raw counts in either the `X` attribute or as a layer.
@@ -920,69 +921,70 @@ def transfer_to_asap(
     layer : str, optional [default: None]
         Layer containing raw integer counts if the `X` attribute does not.
     """
-    torch.set_float32_matmul_precision("high")
+    pass
+    # torch.set_float32_matmul_precision("high")
 
-    hyperparams = msgspec.json.decode(hyperparameters.read_text())
+    # hyperparams = msgspec.json.decode(hyperparameters.read_text())
 
-    subrna = sc.pp.sample(adata[adata.obs[source_key] == "RNA", :], fraction=0.05, copy=True)
-    subatac = sc.pp.sample(
-        adata[adata.obs[source_key] == "ASAP", :], fraction=0.05, copy=True
-    )
-    refdata = ad.concat([subrna, subatac])
+    # subrna = sc.pp.sample(adata[adata.obs[source_key] == "RNA", :], fraction=0.05, copy=True)
+    # subatac = sc.pp.sample(
+    #     adata[adata.obs[source_key] == "ASAP", :], fraction=0.05, copy=True
+    # )
+    # refdata = ad.concat([subrna, subatac])
 
-    scvi.model.SCVI.setup_anndata(
-        refdata,
-        batch_key="source",
-        categorical_covariate_keys=covars,
-        layer="counts",
-    )
+    # scvi.model.SCVI.setup_anndata(
+    #     refdata,
+    #     batch_key="source",
+    #     categorical_covariate_keys=covars,
+    #     layer="counts",
+    # )
 
-    refined_model = scvi.model.SCVI(
-        adata=refdata,
-        n_hidden=hyperparams["config"]["model_params"]["n_hidden"],
-        n_layers=hyperparams["config"]["model_params"]["n_layers"],
-        n_latent=hyperparams["config"]["model_params"]["n_latent"],
-        dropout_rate=hyperparams["config"]["model_params"]["dropout_rate"],
-    )
+    # refined_model = scvi.model.SCVI(
+    #     adata=refdata,
+    #     n_hidden=hyperparams["config"]["model_params"]["n_hidden"],
+    #     n_layers=hyperparams["config"]["model_params"]["n_layers"],
+    #     n_latent=hyperparams["config"]["model_params"]["n_latent"],
+    #     dropout_rate=hyperparams["config"]["model_params"]["dropout_rate"],
+    # )
 
-    refined_model.train(
-        max_epochs=int(hyperparams["config"]["train_params"]["max_epochs"]),
-        check_val_every_n_epoch=1,
-        plan_kwargs={
-            "lr": hyperparams["config"]["train_params"]["plan_kwargs"]["lr"],
-            "weight_decay": hyperparams["config"]["train_params"]["plan_kwargs"][
-                "weight_decay"
-            ],
-            "eps": hyperparams["config"]["train_params"]["plan_kwargs"]["eps"],
-        },
-    )
+    # refined_model.train(
+    #     max_epochs=int(hyperparams["config"]["train_params"]["max_epochs"]),
+    #     check_val_every_n_epoch=1,
+    #     plan_kwargs={
+    #         "lr": hyperparams["config"]["train_params"]["plan_kwargs"]["lr"],
+    #         "weight_decay": hyperparams["config"]["train_params"]["plan_kwargs"][
+    #             "weight_decay"
+    #         ],
+    #         "eps": hyperparams["config"]["train_params"]["plan_kwargs"]["eps"],
+    #     },
+    # )
 
-    scvi.model.SCVI.prepare_query_anndata(querydata, refined_model)
-    type_query = scvi.model.SCVI.load_query_data(
-        querydata,
-        refined_model,
-    )
+    # scvi.model.SCVI.prepare_query_anndata(querydata, refined_model)
+    # type_query = scvi.model.SCVI.load_query_data(
+    #     querydata,
+    #     refined_model,
+    # )
 
-    type_model = scvi.model.SCANVI.from_scvi_model(
-        type_query,
-        adata=querydata,
-        labels_key="labels",
-        unlabeled_category="unknown",
-    )
-    type_model.train(
-        max_epochs=int(hyperparams["config"]["train_params"]["max_epochs"]),
-        check_val_every_n_epoch=1,
-        plan_kwargs={
-            "lr": hyperparams["config"]["train_params"]["plan_kwargs"]["lr"],
-            "weight_decay": hyperparams["config"]["train_params"]["plan_kwargs"][
-                "weight_decay"
-            ],
-            "eps": hyperparams["config"]["train_params"]["plan_kwargs"]["eps"],
-        },
-        adversarial_classifier=True,
-    )
-    querydata.obsm["X_scANVI_scVI"] = type_model.get_latent_representation()
-    querydata.obs["scanvi_scvi_predict"] = type_model.predict()
+    # type_model = scvi.model.SCANVI.from_scvi_model(
+    #     type_query,
+    #     adata=querydata,
+    #     labels_key="labels",
+    #     unlabeled_category="unknown",
+    # )
+    # type_model.train(
+    #     max_epochs=int(hyperparams["config"]["train_params"]["max_epochs"]),
+    #     check_val_every_n_epoch=1,
+    #     plan_kwargs={
+    #         "lr": hyperparams["config"]["train_params"]["plan_kwargs"]["lr"],
+    #         "weight_decay": hyperparams["config"]["train_params"]["plan_kwargs"][
+    #             "weight_decay"
+    #         ],
+    #         "eps": hyperparams["config"]["train_params"]["plan_kwargs"]["eps"],
+    #     },
+    #     adversarial_classifier=True,
+    # )
+    # querydata.obsm["X_scANVI_scVI"] = type_model.get_latent_representation()
+    # querydata.obs["scanvi_scvi_predict"] = type_model.predict()
 
 
 
@@ -1003,8 +1005,8 @@ def pseudobulk_and_correlate(
     nan_policy: Literal["propagate", "raise", "omit"]="propagate",
     alternative: Literal["two-sided", "less", "greater"]="two-sided"
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """pseudobulk_and_correlate
-    For a given cell_type and grouping, pseudobulk by sample and then perform a 
+    r"""pseudobulk_and_correlate
+    For a given cell_type and grouping, pseudobulk by sample and then perform a
     spearman's correlation calculation comparing the bulked adata to the olink data
 
     NOTE: if there are no overlapping samples, the function aborts and just returns `None`
@@ -1025,7 +1027,7 @@ def pseudobulk_and_correlate(
     groups : str | list[str]
         Particular group(s) to include in pseudobulked object
     sample_col : str
-        Column in `adata.obs` containing sample names. Used with grouping cells 
+        Column in `adata.obs` containing sample names. Used with grouping cells
         during pseudobulking
     layer : str, default="counts"
         Layer in `adata.layers` to take data from during pseudobulking

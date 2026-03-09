@@ -1,8 +1,9 @@
 import warnings
 from collections.abc import Sequence
-from enum import Enum
-from multiprocessing import cpu_count
-from pathlib import Path
+from enum import IntEnum, StrEnum
+
+# from multiprocessing import cpu_count
+# from pathlib import Path
 from typing import Any, Literal
 
 import anndata as ad
@@ -12,18 +13,19 @@ import numpy.typing as npt
 import pandas as pd
 import scanpy as sc
 import seaborn as sns
-from loguru import logger
+
+# from loguru import logger
 from scipy.cluster import hierarchy
 
 A_GOOD_LINEWIDTH: float = 0.5
 A_REASONABLE_WIDTH: int = 6
 A_REASONABLE_HEIGHT: int = 3
 
-class AxisVar(int, Enum):
+class AxisVar(IntEnum):
     cells = 0
     features = 1
 
-class ScaleMethod(str, Enum):
+class ScaleMethod(StrEnum):
     standard_scale = "standard_scale"
     z_score = "z_score"
 
@@ -103,114 +105,115 @@ def density_heatmap(
         return None
 
 
-def plot_marker_motif_enrichment(
-    adata,
-    groupby: str,
-    pval: float = 0.05,
-    genome: str = "hg38",
-    repeat_macs: bool = False,
-    max_fdr: float = 0.0001,
-    height: int = 1000,
-    return_data: bool = False,
-    blacklist: Path | None = None,
-    n_jobs=-1,
-    plot_motifs: bool = True,
-):
-    """
-    adata : 
-    groupby : str
-    pval : float
-        0.05
-    genome : str
-        "hg38"
-    repeat_macs : bool
-        False
-    max_fdr : float
-        0.0001
-    height : int
-        1000
-    return_data : bool
-        False
-    blacklist : Path | None
-        None
-    n_jobs 
-        default 1
-    plot_motifs : bool
-        True
-    """
-    import snapatac2 as snap
+# def plot_marker_motif_enrichment(
+#     adata,
+#     groupby: str,
+#     pval: float = 0.05,
+#     genome: str = "hg38",
+#     repeat_macs: bool = False,
+#     max_fdr: float = 0.0001,
+#     height: int = 1000,
+#     return_data: bool = False,
+#     blacklist: Path | None = None,
+#     n_jobs=-1,
+#     plot_motifs: bool = True,
+# ):
+#     """
+#     adata :
+#     groupby : str
+#     pval : float
+#         0.05
+#     genome : str
+#         "hg38"
+#     repeat_macs : bool
+#         False
+#     max_fdr : float
+#         0.0001
+#     height : int
+#         1000
+#     return_data : bool
+#         False
+#     blacklist : Path | None
+#         None
+#     n_jobs : int, default=1
+#     plot_motifs : bool
+#         True
+#     """
+#     import snapatac2 as snap
 
-    if n_jobs == -1:
-        logger.info("setting n_jobs")
-        n_jobs = cpu_count()
+#     if n_jobs == -1:
+#         logger.info("setting n_jobs")
+#         n_jobs = cpu_count()
 
-    logger.info("matching genome")
-    match genome:
-        case ("hg38" | "GRCh38" | "human"):
-            genome = snap.genome.GRCh38
-        case ("hg19" | "GRCh37"):
-            genome = snap.genome.GRCh37
-        case ("mm39" | "GRCm39" | "mouse"):
-            genome = snap.genome.GRCm39
-        case ("mm10" | "GRCm38"):
-            genome = snap.genome.GRCm38
-        case _:
-            msg = f"{genome} does not match a built in genome"
-            raise ValueError(msg)
+#     logger.info("matching genome")
+#     match genome:
+#         case ("hg38" | "GRCh38" | "human"):
+#             genome = snap.genome.GRCh38
+#         case ("hg19" | "GRCh37"):
+#             genome = snap.genome.GRCh37
+#         case ("mm39" | "GRCm39" | "mouse"):
+#             genome = snap.genome.GRCm39
+#         case ("mm10" | "GRCm38"):
+#             genome = snap.genome.GRCm38
+#         case _:
+#             msg = f"{genome} does not match a built in genome"
+#             raise ValueError(msg)
 
-    if "macs3" not in adata.uns.keys():
-        logger.info("Running MACS3")
-        snap.tl.macs3(
-            adata,
-            groupby=groupby,
-            n_jobs=n_jobs,
-            blacklist=blacklist,
-        )
-    elif ("macs3" in adata.uns.keys() and repeat_macs):
-        logger.info("Running MACS3")
-        snap.tl.macs3(
-            adata,
-            groupby=groupby,
-            n_jobs=n_jobs,
-            blacklist=blacklist,
-        )
-    else:
-        logger.info("Not repeating MACS")
+#     if "macs3" not in adata.uns.keys():
+#         logger.info("Running MACS3")
+#         snap.tl.macs3(
+#             adata,
+#             groupby=groupby,
+#             n_jobs=n_jobs,
+#             blacklist=blacklist,
+#         )
+#     elif ("macs3" in adata.uns.keys() and repeat_macs):
+#         logger.info("Running MACS3")
+#         snap.tl.macs3(
+#             adata,
+#             groupby=groupby,
+#             n_jobs=n_jobs,
+#             blacklist=blacklist,
+#         )
+#     else:
+#         logger.info("Not repeating MACS")
 
-    logger.info("merging peaks")
-    peaks = snap.tl.merge_peaks(adata.uns["macs3"], genome)
+#     logger.info("merging peaks")
+#     peaks = snap.tl.merge_peaks(adata.uns["macs3"], genome)
 
-    logger.info("making a peak matrix")
-    peaks_mat = snap.pp.make_peak_matrix(adata, use_rep=peaks["Peaks"])
+#     logger.info("making a peak matrix")
+#     peaks_mat = snap.pp.make_peak_matrix(adata, use_rep=peaks["Peaks"])
 
-    logger.info("calculating marker peaks")
-    marker_peaks = snap.tl.marker_regions(peaks_mat, groupby=groupby, pvalue=pval)
+#     logger.info("calculating marker peaks")
+#     marker_peaks = snap.tl.marker_regions(peaks_mat, groupby=groupby, pvalue=pval)
 
-    logger.info("calculating motif enrichment")
-    # snap.pl.regions(peaks_mat, groupby=groupby, peaks=marker_peaks, interactive=False)
-    motifs = snap.tl.motif_enrichment(
-        motifs=snap.datasets.cis_bp(unique=True),
-        regions=marker_peaks,
-        genome_fasta=genome,
-    )
+#     logger.info("calculating motif enrichment")
+#     # snap.pl.regions(peaks_mat, groupby=groupby, peaks=marker_peaks, interactive=False)
+#     motifs = snap.tl.motif_enrichment(
+#         motifs=snap.datasets.cis_bp(unique=True),
+#         regions=marker_peaks,
+#         genome_fasta=genome,
+#     )
 
-    logger.info("plotting motif enrichment")
-    if plot_motifs:
-        p = snap.pl.motif_enrichment(motifs, max_fdr=max_fdr, height=height, interactive=False, show=False)
-    else:
-        p = None
+#     logger.info("plotting motif enrichment")
+#     if plot_motifs:
+#         p = snap.pl.motif_enrichment(motifs, max_fdr=max_fdr, height=height, interactive=False, show=False)
+#     else:
+#         p = None
 
-    if return_data:
-        return p, peaks, peaks_mat, marker_peaks, motifs
-    else:
-        return p
-# adapted from the seaborn.matrix.ClusterGrid class methods `z_score()` and `standard_scale()`
+#     if return_data:
+#         return p, peaks, peaks_mat, marker_peaks, motifs
+#     else:
+#         return p
+
+
 def scale_data(
-    data2d: pd.DataFrame | npt.NDArray,
+    data2d: pd.DataFrame | npt.ArrayLike,
     axis: Literal[0,1] | None = 0,
     method: ScaleMethod | None = ScaleMethod.standard_scale,
 ) -> pd.DataFrame | np.ndarray:
-    """Standarize the mean and variance of the data axis
+    r"""Standarize the mean and variance of the data axis
+    adapted from the seaborn.matrix.ClusterGrid class methods `z_score()` and `standard_scale()`
 
     Parameters
     ----------
@@ -351,9 +354,9 @@ def feature_hierarchy(
         Metric to use in determining feature similary. Default: "euclidean"
     scaling_method: :class:`ScaleMethod`, Optional
         If the data is to be scaled, how should it be scaled? Using a "standard_scale" or "z_score"?. Default: None
-    plot: bool 
+    plot: bool
         Show the dendrogram produced? Default: False
-    return_dendro_dict: 
+    return_dendro_dict:
         Instead of a `feature | cluster` :class:`pd.DataFrame`, return the dictionary produced by scipy.hierarchy.dendrogram. Default = False
     ax: mpl.axes.Axes
         Axes object to pass when plotting the dendrogram.

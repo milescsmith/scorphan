@@ -7,6 +7,7 @@ import decoupler as dc
 import liana as li
 import omnipath as op
 import pandas as pd
+from joblib import Parallel, delayed
 from loguru import logger
 from pydeseq2.dds import DeseqDataSet
 from pydeseq2.ds import DeseqStats
@@ -31,7 +32,7 @@ def calc_bulk_degs_per_group(
     verbose: bool = False,
 ) -> pd.DataFrame:
     """Using a pseudobulked object (preferably generated using ``decoupler.pp.pseudobulk``), will subset
-    ``pdata`` by each value in ``groupby`` and compare the samples corresponding to the ``test_level`` to the 
+    ``pdata`` by each value in ``groupby`` and compare the samples corresponding to the ``test_level`` to the
     ``ref_level`` of ``condition_key``
 
     Parameters
@@ -39,7 +40,7 @@ def calc_bulk_degs_per_group(
     pdata : ad.AnnData
         A anndata object already pseudobulked by ``groupby``
     groupby : str
-        A column in ``pdata.obs`` by which to group data for comparisons. 
+        A column in ``pdata.obs`` by which to group data for comparisons.
     ref_level : str
         The category in ``groupby`` to use as the reference level in comparisons
     test_level : str
@@ -47,18 +48,18 @@ def calc_bulk_degs_per_group(
     condition_key : str
         A column in ``pdata.obs`` containing the ``ref_level`` and ``test_level`` identities
     skip_groups : list[str] | None, optional
-        Groups in ``groupby`` to skip when performing comparisons (i.e. there are too few samples of ``ref_level`` or 
+        Groups in ``groupby`` to skip when performing comparisons (i.e. there are too few samples of ``ref_level`` or
         ``test_level`` to enable comparisons)
     parallel : bool, default=False
         Perform tests for each ``groupby`` group in parallel? Should be vastly faster, though may cause error messages
         to be more confusing.
     min_number_of_samples : int, default=2
-        If, after subsetting ``pdata`` by the current ``groupby`` category there are fewer than 
+        If, after subsetting ``pdata`` by the current ``groupby`` category there are fewer than
         ``min_number_of_samples``, skip analysis of that category
     force_recalc : bool, default=False
-        The results from previous ``calc_bulk_degs_per_group`` runs are stored within ``pdata`` in 
+        The results from previous ``calc_bulk_degs_per_group`` runs are stored within ``pdata`` in
         ``pdata.uns["{condition_key}({test_level}_vs_{ref_level})_for_{groupby}"]`` and a copy of the previously
-        generated DataFrame will be returned. If ``force_recalc`` is set to ``True`` these previous values will be 
+        generated DataFrame will be returned. If ``force_recalc`` is set to ``True`` these previous values will be
         ignored and everything recalculated.
     verbose : bool, default=False
         Display extra information.
@@ -128,7 +129,7 @@ def calc_bulk_degs_per_group(
         dea_results_list = Parallel(n_jobs=-2, prefer="threads", return_as="list")(
             delayed(ploop)(cell_group) for cell_group in calc_for_cell_types
         )
-        dea_results = {cell_group: degs for cell_group, degs in zip(calc_for_cell_types, dea_results_list, strict=True)}
+        dea_results = dict(zip(calc_for_cell_types, dea_results_list, strict=True))
 
     else:
         dea_results = {
@@ -240,7 +241,7 @@ def _calc_receptor_tf_scores(
         .fillna(0)
     )
 
-    estimates, pvals = dc.mt.ulm(  # pyright: ignore[reportGeneralTypeIssues]
+    estimates, _ = dc.mt.ulm(  # pyright: ignore[reportGeneralTypeIssues]
         data=dea_wide, net=net
     )
     tf_data: pd.DataFrame = (
@@ -335,7 +336,7 @@ def _calc_bulk_group_degs(
     min_number_genes: int = 50,
     min_number_of_samples: int = 2,
     verbose: bool = False,
-) -> pd.DataFrame:
+) -> pd.DataFrame | None:
     """_summary_
 
     Parameters
@@ -376,7 +377,7 @@ def _calc_bulk_group_degs(
     # counts = ctdata.obs.value_counts(condition_key)
     if ((counts := ctdata.obs.value_counts(condition_key)) <= min_number_of_samples).any():
         msg = f'There are {min_number_of_samples} or fewer samples for {", ".join(pd.DataFrame(counts).query("count <= @min_number_of_samples").index)}'
-        warnings.warn(msg)
+        warnings.warn(msg, stacklevel=2)
         return None
 
     logger.debug(f"Obtain genes that pass the edgeR-like thresholds for {cell_group}")
