@@ -1,8 +1,9 @@
 import warnings
 from collections.abc import Sequence
-from enum import Enum
-from multiprocessing import cpu_count
-from pathlib import Path
+from enum import IntEnum, StrEnum
+
+# from multiprocessing import cpu_count
+# from pathlib import Path
 from typing import Any, Literal
 
 import anndata as ad
@@ -12,20 +13,32 @@ import numpy.typing as npt
 import pandas as pd
 import scanpy as sc
 import seaborn as sns
-from loguru import logger
+
+# from loguru import logger
 from scipy.cluster import hierarchy
 
 A_GOOD_LINEWIDTH: float = 0.5
 A_REASONABLE_WIDTH: int = 6
 A_REASONABLE_HEIGHT: int = 3
 
-class AxisVar(int, Enum):
+
+class AxisVar(IntEnum):
+    r"""
+    :meta private:
+    """
+
     cells = 0
     features = 1
 
-class ScaleMethod(str, Enum):
+
+class ScaleMethod(StrEnum):
+    r"""
+    :meta private:
+    """
+
     standard_scale = "standard_scale"
     z_score = "z_score"
+
 
 def density_heatmap(
     obs_df: pd.DataFrame,
@@ -36,13 +49,13 @@ def density_heatmap(
     cluster: bool = False,
     **kwargs,
 ) -> pd.DataFrame | None:
-    """Produce a heatmap displaying the fraction of the total of column_var made up of
+    r"""Produce a heatmap displaying the fraction of the total of column_var made up of
     each of the categories in row_var
 
     Parameters
     ----------
     obs_df: pd.DataFrame
-        `obs` from a :class:`anndata.Anndata` or :class:`mudata.MuData` object
+        `obs` from a :class:`anndata.AnnData` or :class:`mudata.MuData` object
     column_var: str
         obs column to use as the primary grouping variable
     row_var: str
@@ -58,7 +71,7 @@ def density_heatmap(
 
     Returns
     -------
-    :class:`pandas.DataFrame`
+    :class:`pd.DataFrame` :
         A dataframe containing percentage of each column_var group made up of each row_var
         group
 
@@ -103,126 +116,128 @@ def density_heatmap(
         return None
 
 
-def plot_marker_motif_enrichment(
-    adata,
-    groupby: str,
-    pval: float = 0.05,
-    genome: str = "hg38",
-    repeat_macs: bool = False,
-    max_fdr: float = 0.0001,
-    height: int = 1000,
-    return_data: bool = False,
-    blacklist: Path | None = None,
-    n_jobs=-1,
-    plot_motifs: bool = True,
-):
-    """
-    adata : 
-    groupby : str
-    pval : float
-        0.05
-    genome : str
-        "hg38"
-    repeat_macs : bool
-        False
-    max_fdr : float
-        0.0001
-    height : int
-        1000
-    return_data : bool
-        False
-    blacklist : Path | None
-        None
-    n_jobs 
-        default 1
-    plot_motifs : bool
-        True
-    """
-    import snapatac2 as snap
+# def plot_marker_motif_enrichment(
+#     adata,
+#     groupby: str,
+#     pval: float = 0.05,
+#     genome: str = "hg38",
+#     repeat_macs: bool = False,
+#     max_fdr: float = 0.0001,
+#     height: int = 1000,
+#     return_data: bool = False,
+#     blacklist: Path | None = None,
+#     n_jobs=-1,
+#     plot_motifs: bool = True,
+# ):
+#     """
+#     adata :
+#     groupby : str
+#     pval : float
+#         0.05
+#     genome : str
+#         "hg38"
+#     repeat_macs : bool
+#         False
+#     max_fdr : float
+#         0.0001
+#     height : int
+#         1000
+#     return_data : bool
+#         False
+#     blacklist : Path | None
+#         None
+#     n_jobs : int, default=1
+#     plot_motifs : bool
+#         True
+#     """
+#     import snapatac2 as snap
 
-    if n_jobs == -1:
-        logger.info("setting n_jobs")
-        n_jobs = cpu_count()
+#     if n_jobs == -1:
+#         logger.info("setting n_jobs")
+#         n_jobs = cpu_count()
 
-    logger.info("matching genome")
-    match genome:
-        case ("hg38" | "GRCh38" | "human"):
-            genome = snap.genome.GRCh38
-        case ("hg19" | "GRCh37"):
-            genome = snap.genome.GRCh37
-        case ("mm39" | "GRCm39" | "mouse"):
-            genome = snap.genome.GRCm39
-        case ("mm10" | "GRCm38"):
-            genome = snap.genome.GRCm38
-        case _:
-            msg = f"{genome} does not match a built in genome"
-            raise ValueError(msg)
+#     logger.info("matching genome")
+#     match genome:
+#         case ("hg38" | "GRCh38" | "human"):
+#             genome = snap.genome.GRCh38
+#         case ("hg19" | "GRCh37"):
+#             genome = snap.genome.GRCh37
+#         case ("mm39" | "GRCm39" | "mouse"):
+#             genome = snap.genome.GRCm39
+#         case ("mm10" | "GRCm38"):
+#             genome = snap.genome.GRCm38
+#         case _:
+#             msg = f"{genome} does not match a built in genome"
+#             raise ValueError(msg)
 
-    if "macs3" not in adata.uns.keys():
-        logger.info("Running MACS3")
-        snap.tl.macs3(
-            adata,
-            groupby=groupby,
-            n_jobs=n_jobs,
-            blacklist=blacklist,
-        )
-    elif ("macs3" in adata.uns.keys() and repeat_macs):
-        logger.info("Running MACS3")
-        snap.tl.macs3(
-            adata,
-            groupby=groupby,
-            n_jobs=n_jobs,
-            blacklist=blacklist,
-        )
-    else:
-        logger.info("Not repeating MACS")
+#     if "macs3" not in adata.uns.keys():
+#         logger.info("Running MACS3")
+#         snap.tl.macs3(
+#             adata,
+#             groupby=groupby,
+#             n_jobs=n_jobs,
+#             blacklist=blacklist,
+#         )
+#     elif ("macs3" in adata.uns.keys() and repeat_macs):
+#         logger.info("Running MACS3")
+#         snap.tl.macs3(
+#             adata,
+#             groupby=groupby,
+#             n_jobs=n_jobs,
+#             blacklist=blacklist,
+#         )
+#     else:
+#         logger.info("Not repeating MACS")
 
-    logger.info("merging peaks")
-    peaks = snap.tl.merge_peaks(adata.uns["macs3"], genome)
+#     logger.info("merging peaks")
+#     peaks = snap.tl.merge_peaks(adata.uns["macs3"], genome)
 
-    logger.info("making a peak matrix")
-    peaks_mat = snap.pp.make_peak_matrix(adata, use_rep=peaks["Peaks"])
+#     logger.info("making a peak matrix")
+#     peaks_mat = snap.pp.make_peak_matrix(adata, use_rep=peaks["Peaks"])
 
-    logger.info("calculating marker peaks")
-    marker_peaks = snap.tl.marker_regions(peaks_mat, groupby=groupby, pvalue=pval)
+#     logger.info("calculating marker peaks")
+#     marker_peaks = snap.tl.marker_regions(peaks_mat, groupby=groupby, pvalue=pval)
 
-    logger.info("calculating motif enrichment")
-    # snap.pl.regions(peaks_mat, groupby=groupby, peaks=marker_peaks, interactive=False)
-    motifs = snap.tl.motif_enrichment(
-        motifs=snap.datasets.cis_bp(unique=True),
-        regions=marker_peaks,
-        genome_fasta=genome,
-    )
+#     logger.info("calculating motif enrichment")
+#     # snap.pl.regions(peaks_mat, groupby=groupby, peaks=marker_peaks, interactive=False)
+#     motifs = snap.tl.motif_enrichment(
+#         motifs=snap.datasets.cis_bp(unique=True),
+#         regions=marker_peaks,
+#         genome_fasta=genome,
+#     )
 
-    logger.info("plotting motif enrichment")
-    if plot_motifs:
-        p = snap.pl.motif_enrichment(motifs, max_fdr=max_fdr, height=height, interactive=False, show=False)
-    else:
-        p = None
+#     logger.info("plotting motif enrichment")
+#     if plot_motifs:
+#         p = snap.pl.motif_enrichment(motifs, max_fdr=max_fdr, height=height, interactive=False, show=False)
+#     else:
+#         p = None
 
-    if return_data:
-        return p, peaks, peaks_mat, marker_peaks, motifs
-    else:
-        return p
-# adapted from the seaborn.matrix.ClusterGrid class methods `z_score()` and `standard_scale()`
+#     if return_data:
+#         return p, peaks, peaks_mat, marker_peaks, motifs
+#     else:
+#         return p
+
+
 def scale_data(
-    data2d: pd.DataFrame | npt.NDArray,
-    axis: Literal[0,1] | None = 0,
+    data2d: pd.DataFrame | npt.ArrayLike,
+    axis: Literal[0, 1] | None = 0,
     method: ScaleMethod | None = ScaleMethod.standard_scale,
 ) -> pd.DataFrame | np.ndarray:
-    """Standarize the mean and variance of the data axis
+    r"""Standarize the mean and variance of the data axis
+    adapted from the seaborn.matrix.ClusterGrid class methods `z_score()` and `standard_scale()`
 
     Parameters
     ----------
-    data2d : pandas.DataFrame
+    data2d : :class:`pandas.DataFrame` | :class:`npt.ArrayLike`
         Data to normalize
     axis : int
         Which axis to normalize across. If 0, normalize across rows, if 1,
         normalize across columns.
+    method : :class:`ScaleMethod`, default="standard_scale"
 
     Returns
     -------
-    normalized : pandas.DataFrame
+    :class:`pd.DataFrame` :
         Noramlized data with a mean of 0 and variance of 1 across the
         specified axis.
     """
@@ -242,6 +257,7 @@ def scale_data(
     data_df = data_df if axis == 1 else np.transpose(data_df)
     return data_df
 
+
 def prep_plot_df(
     adata: ad.AnnData,
     geneset: Sequence[str],
@@ -253,16 +269,10 @@ def prep_plot_df(
         warnings.warn(msg, stacklevel=2)
 
     if group_by is None:
-        plot_df = (
-            sc.get.obs_df(
-                adata, keys=adata.var_names.intersection(geneset).to_list()
-            )
-        )
+        plot_df = sc.get.obs_df(adata, keys=adata.var_names.intersection(geneset).to_list())
     else:
         plot_df = (
-            sc.get.obs_df(
-                adata, keys=[*adata.var_names.intersection(geneset).to_list(), group_by]
-            )
+            sc.get.obs_df(adata, keys=[*adata.var_names.intersection(geneset).to_list(), group_by])
             .groupby(group_by)
             .mean()
         )
@@ -273,6 +283,7 @@ def prep_plot_df(
         plot_df = plot_df.loc[:, [(np.std(plot_df) != 0)]]
 
     return plot_df
+
 
 def pathway_matrixplot(
     adata: ad.AnnData,
@@ -289,6 +300,39 @@ def pathway_matrixplot(
     linecolor: str = "grey",
     **kwargs,
 ) -> None:
+    r"""
+
+    Parameters
+    ----------
+    adata : ad.AnnData
+
+    geneset : Sequence[str]
+
+    group_by : str | None, default=None
+
+    width : int, default=6
+
+    height : int, default=3
+
+    cluster_rows : bool, default=True
+
+    cluster_cols : bool, default=True
+
+    scale_by : AxisVar | None, default=None
+
+    scale_method : ScaleMethod, default=ScaleMethod.standard_scale
+
+    cmap : str, default="viridis"
+
+    linewidths : float, default=0.5
+
+    linecolor : str, default="grey"
+
+    Returns
+    -------
+    None
+
+    """
 
     if "groupby" in kwargs and group_by is None:
         msg = "`groupby` is not a valid parameter - did you mean `group_by`? Assuming you did and carrying on."
@@ -321,6 +365,7 @@ def pathway_matrixplot(
         **kwargs,
     )
 
+
 def feature_hierarchy(
     adata: ad.AnnData,
     geneset: Sequence[str],
@@ -337,33 +382,34 @@ def feature_hierarchy(
 
     Parameters
     ----------
-    adata: :class:`anndata.Anndata`
+    adata : ad.AnnData
         Object containing expression values to use in clustering genes
-    geneset: :class:`collections.abc.Sequence[str]`
+    geneset : collections.abc.Sequence[str]
         obs column to use as the primary grouping variable
-    scale_by : :class:`AxisVar`
+    scale_by : AxisVar
         How should the data be scaled, by cells or by features? Default: "features"
-    group_by: str, Optional
+    group_by : str, Optional
         How should the cells be grouped, if they should be grouped. Default: None
-    method: str
+    method : str
         Method to use when determining feature similarity. Default: "average"
-    metric: str
+    metric : str
         Metric to use in determining feature similary. Default: "euclidean"
-    scaling_method: :class:`ScaleMethod`, Optional
+    scaling_method : ScaleMethod, Optional
         If the data is to be scaled, how should it be scaled? Using a "standard_scale" or "z_score"?. Default: None
-    plot: bool 
+    plot: bool
         Show the dendrogram produced? Default: False
-    return_dendro_dict: 
-        Instead of a `feature | cluster` :class:`pd.DataFrame`, return the dictionary produced by scipy.hierarchy.dendrogram. Default = False
-    ax: mpl.axes.Axes
+    return_dendro_dict :
+        Instead of a `feature | cluster` pd.DataFrame, return the dictionary produced by scipy.hierarchy.dendrogram. Default = False
+    ax : matplotlib.axes.Axes
         Axes object to pass when plotting the dendrogram.
 
     Returns
     -------
-    By default, :class:`pandas.DataFrame`
+    pd.DataFrame
         A dataframe containing percentage of each column_var group made up of each row_var
         group
-    If `return_dendro_dict` is `True`, a `dict[str, Any]`
+    dict[str, Any]
+        If `return_dendro_dict` is `True`,
 
     Example
     -------

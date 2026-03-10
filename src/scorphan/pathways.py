@@ -5,8 +5,8 @@ from importlib.util import find_spec
 import anndata as ad
 import decoupler as dc
 import liana as li
-import omnipath as op
 import pandas as pd
+from joblib import Parallel, delayed
 from loguru import logger
 from pydeseq2.dds import DeseqDataSet
 from pydeseq2.ds import DeseqStats
@@ -30,52 +30,54 @@ def calc_bulk_degs_per_group(
     force_recalc: bool = False,
     verbose: bool = False,
 ) -> pd.DataFrame:
-    """Using a pseudobulked object (preferably generated using ``decoupler.pp.pseudobulk``), will subset
-    ``pdata`` by each value in ``groupby`` and compare the samples corresponding to the ``test_level`` to the 
+    r"""Using a pseudobulked object (preferably generated using :func:`decoupler.pp.pseudobulk`), will subset
+    ``pdata`` by each value in ``groupby`` and compare the samples corresponding to the ``test_level`` to the
     ``ref_level`` of ``condition_key``
 
     Parameters
     ----------
-    pdata : ad.AnnData
+    pdata : :class:`ad.AnnData`
         A anndata object already pseudobulked by ``groupby``
     groupby : str
-        A column in ``pdata.obs`` by which to group data for comparisons. 
+        A column in ``pdata.obs`` by which to group data for comparisons.
     ref_level : str
         The category in ``groupby`` to use as the reference level in comparisons
     test_level : str
         The category in ``groupby`` to test against ``ref_level``
     condition_key : str
         A column in ``pdata.obs`` containing the ``ref_level`` and ``test_level`` identities
-    skip_groups : list[str] | None, optional
-        Groups in ``groupby`` to skip when performing comparisons (i.e. there are too few samples of ``ref_level`` or 
+    skip_groups : list[str], optional
+        Groups in ``groupby`` to skip when performing comparisons (i.e. there are too few samples of ``ref_level`` or
         ``test_level`` to enable comparisons)
     parallel : bool, default=False
         Perform tests for each ``groupby`` group in parallel? Should be vastly faster, though may cause error messages
         to be more confusing.
     min_number_of_samples : int, default=2
-        If, after subsetting ``pdata`` by the current ``groupby`` category there are fewer than 
+        If, after subsetting ``pdata`` by the current ``groupby`` category there are fewer than
         ``min_number_of_samples``, skip analysis of that category
     force_recalc : bool, default=False
-        The results from previous ``calc_bulk_degs_per_group`` runs are stored within ``pdata`` in 
+        The results from previous ``calc_bulk_degs_per_group`` runs are stored within ``pdata`` in
         ``pdata.uns["{condition_key}({test_level}_vs_{ref_level})_for_{groupby}"]`` and a copy of the previously
-        generated DataFrame will be returned. If ``force_recalc`` is set to ``True`` these previous values will be 
+        generated DataFrame will be returned. If ``force_recalc`` is set to ``True`` these previous values will be
         ignored and everything recalculated.
     verbose : bool, default=False
         Display extra information.
 
     Returns
     -------
-    pd.DataFrame
-        A dataframe similar to the output of ``pydeseq2.ds.DeseqStats.results_df`` with a column added for ``groupby``/
+    pd.DataFrame :
+        A dataframe similar to the output of :func:`pydeseq2.ds.DeseqStats.results_df` with a column added for ``groupby``/
         For example:
 
-            | index | level2_labels | baseMean | log2FoldChange | lfcSE | stat | pvalue | padj |
-            | --- | --- | --- | --- | --- | --- | --- | --- |
-            | HES4 | IL1BCD14monos | 12.787701 | 1.545927 | 0.743384 | 3.074723 | 0.002107 | 0.126105 |
-            | ISG15 | IL1BCD14monos | 68.270440 | 1.835120 | 0.614223 | 3.733109 | 0.000189 | 0.032866 |
-            | SDF4 | IL1BCD14monos | 28.175699 | -0.029049 | 0.171900 | -0.421481 | 0.673404 | 0.954327 |
-            | UBE2J2 | IL1BCD14monos | 17.744663 | -0.066789 | 0.198866 | -1.094360 | 0.273797 | 0.824913 |
-            | INTS11 | IL1BCD14monos | 12.376760 | -0.022870 | 0.190244 | -0.502349 | 0.615422 | 0.943669 |
+        ====== ============= ========= ============== ======== ========= ======== ========
+        index  level2_labels baseMean  log2FoldChange lfcSE    stat      pvalue   padj
+        ====== ============= ========= ============== ======== ========= ======== ========
+        HES4   IL1BCD14monos 12.787701 1.545927       0.743384 3.074723  0.002107 0.126105
+        ISG15  IL1BCD14monos 68.270440 1.835120       0.614223 3.733109  0.000189 0.032866
+        SDF4   IL1BCD14monos 28.175699 -0.029049      0.171900 -0.421481 0.673404 0.954327
+        UBE2J2 IL1BCD14monos 17.744663 -0.066789      0.198866 -1.094360 0.273797 0.824913
+        INTS11 IL1BCD14monos 12.376760 -0.022870      0.190244 -0.502349 0.615422 0.943669
+        ====== ============= ========= ============== ======== ========= ======== ========
 
     Example
     -------
@@ -128,7 +130,7 @@ def calc_bulk_degs_per_group(
         dea_results_list = Parallel(n_jobs=-2, prefer="threads", return_as="list")(
             delayed(ploop)(cell_group) for cell_group in calc_for_cell_types
         )
-        dea_results = {cell_group: degs for cell_group, degs in zip(calc_for_cell_types, dea_results_list, strict=True)}
+        dea_results = dict(zip(calc_for_cell_types, dea_results_list, strict=True))
 
     else:
         dea_results = {
@@ -186,7 +188,7 @@ def _calc_receptor_tf_scores(
     net: pd.DataFrame | None = None,
     n_ligands: int = 10,
     n_tfs: int = 5,
-) -> tuple[pd.DataFrame]:
+) -> tuple[pd.DataFrame | pd.DataFrame]:
     """Using the results from `calc_lr_res`, determine the predicted most active receptors and the likely downstream
     transcription factors they are activating
 
@@ -210,7 +212,6 @@ def _calc_receptor_tf_scores(
         _description_, by default 10
     n_tfs : int, optional
         _description_, by default 5
-
 
     Returns
     -------
@@ -240,7 +241,7 @@ def _calc_receptor_tf_scores(
         .fillna(0)
     )
 
-    estimates, pvals = dc.mt.ulm(  # pyright: ignore[reportGeneralTypeIssues]
+    estimates, _ = dc.mt.ulm(  # pyright: ignore[reportGeneralTypeIssues]
         data=dea_wide, net=net
     )
     tf_data: pd.DataFrame = (
@@ -249,7 +250,7 @@ def _calc_receptor_tf_scores(
     tf_dict = tf_data.loc[target_group].to_dict()
     tf_scores = _select_top_n(tf_dict, n=n_tfs)
 
-    return receptor_scores, tf_scores
+    return (receptor_scores, tf_scores)
 
 
 def _find_causal_network(
@@ -282,6 +283,9 @@ def _find_causal_network(
     pd.DataFrame
         _description_
     """
+
+    import omnipath as op
+
     ppis = op.interactions.OmniPath().get(genesymbols=True)
 
     ppis["mor"] = ppis["is_stimulation"].astype(int) - ppis["is_inhibition"].astype(int)
@@ -335,7 +339,7 @@ def _calc_bulk_group_degs(
     min_number_genes: int = 50,
     min_number_of_samples: int = 2,
     verbose: bool = False,
-) -> pd.DataFrame:
+) -> pd.DataFrame | None:
     """_summary_
 
     Parameters
@@ -375,8 +379,8 @@ def _calc_bulk_group_degs(
 
     # counts = ctdata.obs.value_counts(condition_key)
     if ((counts := ctdata.obs.value_counts(condition_key)) <= min_number_of_samples).any():
-        msg = f'There are {min_number_of_samples} or fewer samples for {", ".join(pd.DataFrame(counts).query("count <= @min_number_of_samples").index)}'
-        warnings.warn(msg)
+        msg = f"There are {min_number_of_samples} or fewer samples for {', '.join(pd.DataFrame(counts).query('count <= @min_number_of_samples').index)}"
+        warnings.warn(msg, stacklevel=2)
         return None
 
     logger.debug(f"Obtain genes that pass the edgeR-like thresholds for {cell_group}")

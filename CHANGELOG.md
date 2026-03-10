@@ -1,5 +1,15 @@
 # scorphan
 
+## [0.15.0] - 2026-03-10
+
+### Added
+- Documentation via Sphinx.
+
+### Changed
+- Fixes/updates/reformatting of docstrings
+- Changed several instances of a `Literal` list of choices into an Enum
+- Moved build backend from pdm to uv
+
 ## [0.14.0] - 2026-03-06
 
 ### Added
@@ -39,7 +49,7 @@
 ### Added
 - New `gpu` submodule for placing various functions I'm attemptint to gpu-accelerate
 - optional `cupy` dependency
-- `tl.extract_h5_obs`, which can read the `obs` attribute of an Anndata or MuData object directly from disk and
+- `tl.extract_h5_obs`, which can read the `obs` attribute of an AnnData or MuData object directly from disk and
     into a pandas.DataFrame
 
 ## [0.9.2] - 2025-06-26
@@ -135,6 +145,7 @@
 
 - Created module
 
+[0.15.0]: https://github.com/milescsmith/scorphan/releases/compare/0.14.0..0.15.0
 [0.14.0]: https://github.com/milescsmith/scorphan/releases/compare/0.13.0..0.14.0
 [0.13.0]: https://github.com/milescsmith/scorphan/releases/compare/0.12.0..0.13.0
 [0.12.0]: https://github.com/milescsmith/scorphan/releases/compare/0.11.0..0.12.0

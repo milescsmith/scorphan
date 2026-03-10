@@ -5,6 +5,7 @@
 import re
 import warnings
 from collections.abc import Iterable, Sequence
+from copy import deepcopy
 from multiprocessing import cpu_count
 
 # from copy import deepcopy
@@ -16,16 +17,18 @@ import decoupler as dc
 import gseapy as gp
 import h5py
 import matplotlib.pyplot as plt
-import msgspec
+
+# import msgspec
 import muon as mu
 import networkx as nx
 import numpy as np
-import numpy.testing as npt
+import numpy.typing as npt
 import pandas as pd
 import scanpy as sc
 import scipy as sp
-import scvi
-import torch
+
+# import scvi
+# import torch
 from anndata import AnnData
 from formulaic.errors import FormulaicError
 from formulaic.parser import DefaultFormulaParser
@@ -37,17 +40,18 @@ from pydeseq2.dds import DeseqDataSet
 from pydeseq2.default_inference import DefaultInference
 from pydeseq2.ds import DeseqStats
 from rich.progress import Progress
+from scanpy.tools._utils import _choose_representation
 
 # from scanpy.tools._utils import _choose_representation
 from scipy.sparse import issparse
 
-from scorphan._utils import is_integer_array, not_yet_implemented
+from scorphan._utils import ArgumentError, is_integer_array, make_list_if_not, not_yet_implemented
 from scorphan.log import init_logger
-from scorphan.utils import ArgumentError, make_list_if_not
 
 MAX_PVAL: Final[float] = 0.05
 
-@not_yet_implemented
+
+@not_yet_implemented(reason="Function needs to be adapted to work with new versions of scanpy/anndata/muon")
 def muon_paga_umap(
     mdata: AnnData,
     min_dist: float = 0.5,
@@ -105,65 +109,65 @@ def muon_paga_umap(
     NotImplementedError
         _description_
     """
-    msg = "This function does not currently work and is disabled for the time being."
-    logger.error(msg)
-    raise NotImplementedError(msg)
-    # neighbors = mdata.uns[neighbors_key]
-    # reps = {}
-    # nfeatures = 0
-    # nparams = neighbors["params"]
-    # use_rep = {k: (v if v != -1 else None) for k, v in nparams["use_rep"].items()}
-    # n_pcs = {k: (v if v != -1 else None) for k, v in nparams["n_pcs"].items()}
-    # observations = mdata.obs.index
+    # msg = "This function does not currently work and is disabled for the time being."
+    # logger.error(msg)
+    # raise NotImplementedError(msg)
+    neighbors = mdata.uns[neighbors_key]
+    reps = {}
+    nfeatures = 0
+    nparams = neighbors["params"]
+    use_rep = {k: (v if v != -1 else None) for k, v in nparams["use_rep"].items()}
+    n_pcs = {k: (v if v != -1 else None) for k, v in nparams["n_pcs"].items()}
+    observations = mdata.obs.index
 
-    # for mod, rep in use_rep.items():
-    #     nfeatures += rep.shape[1]
-    #     reps[mod] = _choose_representation(mdata.mod[mod], rep, n_pcs[mod])
+    for mod, rep in use_rep.items():
+        nfeatures += rep.shape[1]
+        reps[mod] = _choose_representation(mdata.mod[mod], rep, n_pcs[mod])
 
-    # rep = np.empty((len(observations), nfeatures), np.float32)
-    # nfeatures = 0
+    rep = np.empty((len(observations), nfeatures), np.float32)
+    nfeatures = 0
 
-    # for mod, crep in reps.items():
-    #     cnfeatures = nfeatures + crep.shape[1]
-    #     idx = observations.isin(mdata.mod[mod].obs.index)
-    #     rep[idx, nfeatures:cnfeatures] = crep.toarray() if issparse(crep) else crep
-    #     if np.sum(idx) < rep.shape[0]:
-    #         imputed = crep.mean(axis=0)
-    #         if issparse(crep):
-    #             imputed = np.asarray(imputed).squeeze()
-    #         rep[~idx, nfeatures : crep.shape[1]] = imputed
-    #     nfeatures = cnfeatures
+    for mod, crep in reps.items():
+        cnfeatures = nfeatures + crep.shape[1]
+        idx = observations.isin(mdata.mod[mod].obs.index)
+        rep[idx, nfeatures:cnfeatures] = crep.toarray() if issparse(crep) else crep
+        if np.sum(idx) < rep.shape[0]:
+            imputed = crep.mean(axis=0)
+            if issparse(crep):
+                imputed = np.asarray(imputed).squeeze()
+            rep[~idx, nfeatures : crep.shape[1]] = imputed
+        nfeatures = cnfeatures
 
-    # adata = AnnData(X=rep, obs=mdata.obs)
+    adata = AnnData(X=rep, obs=mdata.obs)
 
-    # adata.uns[neighbors_key] = deepcopy(neighbors)
-    # adata.uns[neighbors_key]["params"]["use_rep"] = "X"
-    # del adata.uns[neighbors_key]["params"]["n_pcs"]
-    # adata.obsp[neighbors["connectivities_key"]] = mdata.obsp[neighbors["connectivities_key"]]
-    # adata.obsp[neighbors["distances_key"]] = mdata.obsp[neighbors["distances_key"]]
+    adata.uns[neighbors_key] = deepcopy(neighbors)
+    adata.uns[neighbors_key]["params"]["use_rep"] = "X"
+    del adata.uns[neighbors_key]["params"]["n_pcs"]
+    adata.obsp[neighbors["connectivities_key"]] = mdata.obsp[neighbors["connectivities_key"]]
+    adata.obsp[neighbors["distances_key"]] = mdata.obsp[neighbors["distances_key"]]
 
-    # adata.uns["paga"] = mdata.uns["paga"].copy()
+    adata.uns["paga"] = mdata.uns["paga"].copy()
 
-    # sc.tl.umap(
-    #     adata=adata,
-    #     min_dist=min_dist,
-    #     spread=spread,
-    #     n_components=n_components,
-    #     maxiter=maxiter,
-    #     alpha=alpha,
-    #     gamma=gamma,
-    #     negative_sample_rate=negative_sample_rate,
-    #     init_pos=init_pos,
-    #     random_state=random_state,
-    #     a=a,
-    #     b=b,
-    #     copy=False,
-    #     method=method,
-    #     neighbors_key=neighbors_key,
-    # )
+    sc.tl.umap(
+        adata=adata,
+        min_dist=min_dist,
+        spread=spread,
+        n_components=n_components,
+        maxiter=maxiter,
+        alpha=alpha,
+        gamma=gamma,
+        negative_sample_rate=negative_sample_rate,
+        init_pos=init_pos,
+        random_state=random_state,
+        a=a,
+        b=b,
+        copy=False,
+        method=method,
+        neighbors_key=neighbors_key,
+    )
 
-    # mdata.obsm["X_umap"] = adata.obsm["X_umap"]
-    # mdata.uns["umap"] = adata.uns["umap"]
+    mdata.obsm["X_umap"] = adata.obsm["X_umap"]
+    mdata.uns["umap"] = adata.uns["umap"]
 
 
 def GSEApy_process(
@@ -179,7 +183,7 @@ def GSEApy_process(
     outdir_path: Path | None = None,
     verbose: bool = False,
 ):
-    """_summary_
+    r"""_summary_
 
     Parameters
     ----------
@@ -410,7 +414,7 @@ def GSEApy_process(
     for node in nodes.index:
         if node not in graph.nodes():
             graph.add_node(node)
-    fig, ax = plt.subplots(figsize=(12, 12))
+    _, ax = plt.subplots(figsize=(12, 12))
 
     # init node cooridnates
     pos = nx.layout.spiral_layout(graph)
@@ -430,6 +434,7 @@ def GSEApy_process(
     edges.to_csv(str(outdir_path.joinpath("GSEA_results", "Edges.csv")))
 
 
+# TODO: why is this here?
 def umap(
     mdata: MuData,
     min_dist: float = 0.5,
@@ -439,7 +444,7 @@ def umap(
     alpha: float = 1.0,
     gamma: float = 1.0,
     negative_sample_rate: int = 5,
-    init_pos: Literal["spectral", "random"] | npt.NDarray | None = "spectral",
+    init_pos: Literal["spectral", "random"] | npt.ArrayLike | None = "spectral",
     random_state: int | np.random.RandomState | None = 42,
     a: float | None = None,
     b: float | None = None,
@@ -447,7 +452,7 @@ def umap(
     method: Literal["umap", "rapids"] = "umap",
     neighbors_key: str | None = None,
 ) -> MuData | AnnData | None:
-    """
+    r"""
     Embed the multimodal neighborhood graph using UMAP (McInnes et al, 2018).
 
     UMAP (Uniform Manifold Approximation and Projection) is a manifold learning
@@ -483,7 +488,7 @@ def umap(
     negative_sample_rate : int, default=5
         The number of negative edge/1-simplex samples to use per
         positive edge/1-simplex sample in optimizing the low dimensional embedding.
-    init_pos : Literal["spectral", "random"] | npt.NDarray | None, default="spectral"
+    init_pos : Literal["spectral", "random"] | npt.ArrayLike | None, default="spectral"
         How to initialize the low dimensional embedding. Called ``init`` in the original UMAP. Options are:
         - 'spectral': use a spectral embedding of the graph.
         - 'random': assign initial embedding positions at random.
@@ -610,13 +615,13 @@ def umap(
 
 
 def extract_h5_obs(h5_file: Path) -> pd.DataFrame:
-    """Read the obs attribute directly from the on-disk Anndata or MuData object
+    """Read the obs attribute directly from the on-disk AnnData or MuData object
     without reading it into memory.
 
     Parameters
     ---------
     h5_file : Path
-        A Path object pointing to the Anndata/MuData file with the obs attribute of interest
+        A Path object pointing to the AnnData/MuData file with the obs attribute of interest
 
     Returns
     -------
@@ -634,7 +639,9 @@ def extract_h5_obs(h5_file: Path) -> pd.DataFrame:
                 # need to handle an instance where we
                 decoded = {j: i.decode() for j, i in enumerate(v["categories"][:])}
                 try:
-                    obs_df.insert(loc=obs_df.shape[1], column=k, value=[decoded[_] if _ != 1 else np.nan for _ in v["codes"][:]])
+                    obs_df.insert(
+                        loc=obs_df.shape[1], column=k, value=[decoded[_] if _ != 1 else np.nan for _ in v["codes"][:]]
+                    )
                 except KeyError as err:
                     msg = f"{v=}"
                     raise KeyError(msg) from err
@@ -642,38 +649,6 @@ def extract_h5_obs(h5_file: Path) -> pd.DataFrame:
                 obs_df.insert(loc=obs_df.shape[1], column=k, value=v[:])
         obs_df.drop(columns=index_col, inplace=True)
     return obs_df
-
-
-def filter_df(
-    df: pd.DataFrame,
-    by: str,
-    values: Sequence[str] | str,
-    negate: bool = False,
-) -> pd.DataFrame:
-    """Filter a pandas dataframe by a column value
-    Parameters
-    ----------
-    df : :class:`pd.DataFrame`
-    by : :class:`str`
-        Column to use when filters
-    values : :class:`Sequence[str]` | :class:`str`
-        Keep rows based on this value in the `by` columns. If `negate` is True, discard the rows instead.
-    negate : :class:`bool`
-        Should the dataframe be filtered to keep rows that do *not* have the indicated values?
-
-    Returns
-    -------
-    :class:`pd.DataFrame`
-    """
-    match values:
-        case str() if negate:
-            return df.loc[df[by] != values, :]
-        case str():
-            return df.loc[df[by] != values, :]
-        case Sequence() if negate:
-            return df.loc[~df[by].isin(values), :]
-        case Sequence():
-            return df.loc[df[by].isin(values), :]
 
 
 def pseudobulk_differential_expression(
@@ -779,7 +754,7 @@ def pseudobulk_differential_expression(
         ["below_zero_thresh", "below_deviance_thresh"], [np.sum, np.std], [min_sum_counts, min_std], strict=True
     ):
         subset_bulked.var[stat] = (
-            func(exprs, axis=0).where(lambda x: x < thresh).replace({np.nan: False, 0.0: True})[subset_bulked.var_names]
+            func(exprs, axis=0).where(lambda x: x < thresh).replace({np.nan: False, 0.0: True})[subset_bulked.var_names]  # noqa: B023
         )
         mu.pp.filter_var(subset_bulked, var=stat, func=lambda x: ~x)
 
@@ -848,7 +823,7 @@ def pseudobulk_differential_expression(
 
 # based on the version in PyDESeq2. Copied and not imported because it is a private method
 def _full_rank_design(adata: ad.AnnData, formula: str) -> bool:
-    """Check that the design matrix has full column rank."""
+    r"""Check that the design matrix has full column rank."""
     design_matrix = FormulaicContrasts(data=adata.obs, design=formula).design_matrix
     rank = np.linalg.matrix_rank(A=design_matrix)
     num_vars = design_matrix.shape[1]
@@ -882,9 +857,10 @@ def _check_formula(obs, formula) -> None:
         msg = f"The terms {', '.join(not_found)} are not present in the anndata object's obs columns"
         raise pd.errors.InvalidColumnName(msg)
 
+
 @not_yet_implemented
 def transfer_to_asap(
-    adata: ad.Anndata,
+    adata: ad.AnnData,
     label_key: str,
     source_key: str,
     source_label: str = "RNA",
@@ -893,15 +869,15 @@ def transfer_to_asap(
     covars: Iterable[str] | str | None = None,
     hyperparameters: Path | None = None,
     layer: str | None = None,
-    ):
-    """Use scVI and scANVI to transfer labels from the protein modality of CITE-seq data
+):
+    r"""Use scVI and scANVI to transfer labels from the protein modality of CITE-seq data
     to the protein modality of ASAP-seq data
 
     This requires an anndata object with a raw counts in either the `X` attribute or as a layer.
 
     Parameters
     ----------
-    adata : Anndata
+    adata : AnnData
         Concatenated object with raw protein counts from both the reference RNAseq and ASAPseq modalities.
     label_key : str
         Column in `obs` that has the labels to be transferred from the RNAseq to the ASAPseq modality
@@ -920,70 +896,70 @@ def transfer_to_asap(
     layer : str, optional [default: None]
         Layer containing raw integer counts if the `X` attribute does not.
     """
-    torch.set_float32_matmul_precision("high")
+    pass
+    # torch.set_float32_matmul_precision("high")
 
-    hyperparams = msgspec.json.decode(hyperparameters.read_text())
+    # hyperparams = msgspec.json.decode(hyperparameters.read_text())
 
-    subrna = sc.pp.sample(adata[adata.obs[source_key] == "RNA", :], fraction=0.05, copy=True)
-    subatac = sc.pp.sample(
-        adata[adata.obs[source_key] == "ASAP", :], fraction=0.05, copy=True
-    )
-    refdata = ad.concat([subrna, subatac])
+    # subrna = sc.pp.sample(adata[adata.obs[source_key] == "RNA", :], fraction=0.05, copy=True)
+    # subatac = sc.pp.sample(
+    #     adata[adata.obs[source_key] == "ASAP", :], fraction=0.05, copy=True
+    # )
+    # refdata = ad.concat([subrna, subatac])
 
-    scvi.model.SCVI.setup_anndata(
-        refdata,
-        batch_key="source",
-        categorical_covariate_keys=covars,
-        layer="counts",
-    )
+    # scvi.model.SCVI.setup_anndata(
+    #     refdata,
+    #     batch_key="source",
+    #     categorical_covariate_keys=covars,
+    #     layer="counts",
+    # )
 
-    refined_model = scvi.model.SCVI(
-        adata=refdata,
-        n_hidden=hyperparams["config"]["model_params"]["n_hidden"],
-        n_layers=hyperparams["config"]["model_params"]["n_layers"],
-        n_latent=hyperparams["config"]["model_params"]["n_latent"],
-        dropout_rate=hyperparams["config"]["model_params"]["dropout_rate"],
-    )
+    # refined_model = scvi.model.SCVI(
+    #     adata=refdata,
+    #     n_hidden=hyperparams["config"]["model_params"]["n_hidden"],
+    #     n_layers=hyperparams["config"]["model_params"]["n_layers"],
+    #     n_latent=hyperparams["config"]["model_params"]["n_latent"],
+    #     dropout_rate=hyperparams["config"]["model_params"]["dropout_rate"],
+    # )
 
-    refined_model.train(
-        max_epochs=int(hyperparams["config"]["train_params"]["max_epochs"]),
-        check_val_every_n_epoch=1,
-        plan_kwargs={
-            "lr": hyperparams["config"]["train_params"]["plan_kwargs"]["lr"],
-            "weight_decay": hyperparams["config"]["train_params"]["plan_kwargs"][
-                "weight_decay"
-            ],
-            "eps": hyperparams["config"]["train_params"]["plan_kwargs"]["eps"],
-        },
-    )
+    # refined_model.train(
+    #     max_epochs=int(hyperparams["config"]["train_params"]["max_epochs"]),
+    #     check_val_every_n_epoch=1,
+    #     plan_kwargs={
+    #         "lr": hyperparams["config"]["train_params"]["plan_kwargs"]["lr"],
+    #         "weight_decay": hyperparams["config"]["train_params"]["plan_kwargs"][
+    #             "weight_decay"
+    #         ],
+    #         "eps": hyperparams["config"]["train_params"]["plan_kwargs"]["eps"],
+    #     },
+    # )
 
-    scvi.model.SCVI.prepare_query_anndata(querydata, refined_model)
-    type_query = scvi.model.SCVI.load_query_data(
-        querydata,
-        refined_model,
-    )
+    # scvi.model.SCVI.prepare_query_anndata(querydata, refined_model)
+    # type_query = scvi.model.SCVI.load_query_data(
+    #     querydata,
+    #     refined_model,
+    # )
 
-    type_model = scvi.model.SCANVI.from_scvi_model(
-        type_query,
-        adata=querydata,
-        labels_key="labels",
-        unlabeled_category="unknown",
-    )
-    type_model.train(
-        max_epochs=int(hyperparams["config"]["train_params"]["max_epochs"]),
-        check_val_every_n_epoch=1,
-        plan_kwargs={
-            "lr": hyperparams["config"]["train_params"]["plan_kwargs"]["lr"],
-            "weight_decay": hyperparams["config"]["train_params"]["plan_kwargs"][
-                "weight_decay"
-            ],
-            "eps": hyperparams["config"]["train_params"]["plan_kwargs"]["eps"],
-        },
-        adversarial_classifier=True,
-    )
-    querydata.obsm["X_scANVI_scVI"] = type_model.get_latent_representation()
-    querydata.obs["scanvi_scvi_predict"] = type_model.predict()
-
+    # type_model = scvi.model.SCANVI.from_scvi_model(
+    #     type_query,
+    #     adata=querydata,
+    #     labels_key="labels",
+    #     unlabeled_category="unknown",
+    # )
+    # type_model.train(
+    #     max_epochs=int(hyperparams["config"]["train_params"]["max_epochs"]),
+    #     check_val_every_n_epoch=1,
+    #     plan_kwargs={
+    #         "lr": hyperparams["config"]["train_params"]["plan_kwargs"]["lr"],
+    #         "weight_decay": hyperparams["config"]["train_params"]["plan_kwargs"][
+    #             "weight_decay"
+    #         ],
+    #         "eps": hyperparams["config"]["train_params"]["plan_kwargs"]["eps"],
+    #     },
+    #     adversarial_classifier=True,
+    # )
+    # querydata.obsm["X_scANVI_scVI"] = type_model.get_latent_representation()
+    # querydata.obs["scanvi_scvi_predict"] = type_model.predict()
 
 
 def pseudobulk_and_correlate(
@@ -999,12 +975,12 @@ def pseudobulk_and_correlate(
     normalize_bulk: bool = True,
     scale_bulk: bool = False,
     remove_nulls: bool = False,
-    axis: int=0,
-    nan_policy: Literal["propagate", "raise", "omit"]="propagate",
-    alternative: Literal["two-sided", "less", "greater"]="two-sided"
+    axis: int = 0,
+    nan_policy: Literal["propagate", "raise", "omit"] = "propagate",
+    alternative: Literal["two-sided", "less", "greater"] = "two-sided",
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """pseudobulk_and_correlate
-    For a given cell_type and grouping, pseudobulk by sample and then perform a 
+    r"""pseudobulk_and_correlate
+    For a given cell_type and grouping, pseudobulk by sample and then perform a
     spearman's correlation calculation comparing the bulked adata to the olink data
 
     NOTE: if there are no overlapping samples, the function aborts and just returns `None`
@@ -1025,7 +1001,7 @@ def pseudobulk_and_correlate(
     groups : str | list[str]
         Particular group(s) to include in pseudobulked object
     sample_col : str
-        Column in `adata.obs` containing sample names. Used with grouping cells 
+        Column in `adata.obs` containing sample names. Used with grouping cells
         during pseudobulking
     layer : str, default="counts"
         Layer in `adata.layers` to take data from during pseudobulking
@@ -1054,19 +1030,14 @@ def pseudobulk_and_correlate(
     groups = make_list_if_not(groups)
 
     adata_subset = adata[
-        adata.obs[group_col].isin([groups])
-        & (adata.obs[cell_type_col].isin([cell_types])),
+        adata.obs[group_col].isin([groups]) & (adata.obs[cell_type_col].isin([cell_types])),
         :,
     ]
-    pdata = dc.pp.pseudobulk(
-        adata_subset, sample_col="sample_name", groups_col=None, layer=layer
-    )
+    pdata = dc.pp.pseudobulk(adata_subset, sample_col="sample_name", groups_col=None, layer=layer)
 
     if filter_highly_variable:
         if "highly_variable" in adata.var.columns:
-            pdata = pdata[
-                :, pdata.var_names[pdata.var["highly_variable"]]
-            ].copy()
+            pdata = pdata[:, pdata.var_names[pdata.var["highly_variable"]]].copy()
         else:
             msg = "A True value was passed to the `highly_variable` argument, but no `highly_variable` column is present in `adata`. Aborting."
             raise ArgumentError(msg)
@@ -1083,10 +1054,12 @@ def pseudobulk_and_correlate(
 
     # one dimension of the matrices can be different. In this case, we need to subset on common samples
     common_indices = rna_df.index.intersection(olink_df.index)
-    rna_df = rna_df.loc[common_indices,:]
-    olink_df = olink_df.loc[common_indices,:]
+    rna_df = rna_df.loc[common_indices, :]
+    olink_df = olink_df.loc[common_indices, :]
 
-    corr_arr, p_arr = sp.stats.spearmanr(a=rna_df, b=olink_df, axis=axis, nan_policy=nan_policy, alternative=alternative)
+    corr_arr, p_arr = sp.stats.spearmanr(
+        a=rna_df, b=olink_df, axis=axis, nan_policy=nan_policy, alternative=alternative
+    )
     corr_df = pd.DataFrame(
         corr_arr,
         index=np.hstack(
@@ -1120,8 +1093,6 @@ def pseudobulk_and_correlate(
     )
 
     if remove_nulls:
-        corr_df = corr_df.loc[
-            ~pd.isnull(corr_df).all(axis=1), ~pd.isnull(corr_df).all(axis=0)
-        ]
+        corr_df = corr_df.loc[~pd.isnull(corr_df).all(axis=1), ~pd.isnull(corr_df).all(axis=0)]
 
     return (corr_df, p_df)
