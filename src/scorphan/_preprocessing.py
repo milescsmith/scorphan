@@ -1,5 +1,6 @@
 import numbers
 import warnings
+from enum import StrEnum
 from typing import Final, Literal
 
 import anndata as ad
@@ -33,7 +34,55 @@ LOW_MEMORY_SPARSE_SPLITS: Final[int] = 10000
 LARGE_MEMORY_SPARSE_SPLITS: Final[int] = 30000
 
 
-def neighdist(rep, cell, nz, metric):
+class DistMetric(StrEnum):
+    r"""
+    :meta private:
+    """
+
+    braycurtis = "braycurtis"
+    canberra = "canberra"
+    chebyshev = "chebyshev"
+    cityblock = "cityblock"
+    correlation = "correlation"
+    cosine = "cosine"
+    dice = "dice"
+    euclidean = "euclidean"
+    hamming = "hamming"
+    jaccard = "jaccard"
+    jensenshannon = "jensenshannon"
+    kulsinski = "kulsinski"
+    mahalanobis = "mahalanobis"
+    matching = "matching"
+    minkowski = "minkowski"
+    rogerstanimoto = "rogerstanimoto"
+    russellrao = "russellrao"
+    seuclidean = "seuclidean"
+    sokalmichener = "sokalmichener"
+    sokalsneath = "sokalsneath"
+    sqeuclidean = "sqeuclidean"
+    wminkowski = "wminkowski"
+    yule = "yule"
+
+
+def neighdist(rep: npt.ArrayLike, cell: int, nz: int, metric: DistMetric = DistMetric.euclidean):
+    r"""Neighbor distance metric.
+
+    Parameters
+    ----------
+    rep: :class:`npt.ArrayLike`
+
+    cell : int
+
+    nz : int
+
+    metric : :class:`DistMetric`
+
+
+    Returns
+    -------
+    :class:`npt.ArrayLike`
+
+    """
     if issparse(rep):
         return -cdist(rep[cell, :].toarray(), rep[nz, :].toarray(), metric=metric)
     else:
@@ -48,31 +97,7 @@ def neighbors(
     n_bandwidth_neighbors: int = 20,
     n_multineighbors: int = 200,
     neighbor_keys: dict[str, str | None] | None = None,
-    metric: Literal[
-        "euclidean",
-        "braycurtis",
-        "canberra",
-        "chebyshev",
-        "cityblock",
-        "correlation",
-        "cosine",
-        "dice",
-        "hamming",
-        "jaccard",
-        "jensenshannon",
-        "kulsinski",
-        "mahalanobis",
-        "matching",
-        "minkowski",
-        "rogerstanimoto",
-        "russellrao",
-        "seuclidean",
-        "sokalmichener",
-        "sokalsneath",
-        "sqeuclidean",
-        "wminkowski",
-        "yule",
-    ] = "euclidean",
+    metric: DistMetric = DistMetric.euclidean,
     low_memory: bool | None = None,
     key_added: str | None = None,
     weight_key: str = "mod_weight",
@@ -83,50 +108,69 @@ def neighbors(
     random_state: int | np.random.RandomState | None = 42,
     verbose: bool = False,
 ) -> MuData | None:
-    """
-    Multimodal nearest neighbor search.
+    r"""Multimodal nearest neighbor search.
 
     This implements the multimodal nearest neighbor method of Hao et al. and Swanson et al. The neighbor search
     efficiency on this heavily relies on UMAP. In particular, you may want to decrease n_multineighbors for large
     data set to avoid excessive peak memory use. Note that to achieve results as close as possible to the Seurat
-    implementation, observations must be normalized to unit L2 norm (see :func:`l2norm`) prior to running per-modality
+    implementation, observations must be normalized to unit L2 norm (see `l2norm`) prior to running per-modality
     nearest-neighbor search.
 
-    References:
-        Hao et al, 2020 (`doi:10.1101/2020.10.12.335331 <https://dx.doi.org/10.1101/2020.10.12.335331>`_)
-        Swanson et al, 2020 (`doi:10.1101/2020.09.04.283887 <https://dx.doi.org/10.1101/2020.09.04.283887>`_)
+    References
+    ----------
+    Hao et al, 2020 (`doi:10.1101/2020.10.12.335331 <https://dx.doi.org/10.1101/2020.10.12.335331>`_)
+    Swanson et al, 2020 (`doi:10.1101/2020.09.04.283887 <https://dx.doi.org/10.1101/2020.09.04.283887>`_)
 
-    Args:
-        mdata: MuData object. Per-modality nearest neighbor search must have already been performed for all modalities
-            that are to be used for multimodal nearest neighbor search.
-        modality_weights: A factor by which to weigh the modalities when contructing the joint neighborhood graph.
-        manual_weights: Supply your own weights!
-        n_neighbors: Number of nearest neighbors to find. If ``None``, will be set to the arithmetic mean of per-modality
-            neighbors.
-        n_bandwidth_neighbors: Number of nearest neighbors to use for bandwidth selection.
-        n_multineighbors: Number of nearest neighbors in each modality to consider as candidates for multimodal nearest
-            neighbors. Only points in the union of per-modality nearest neighbors are candidates for multimodal nearest
-            neighbors. This will use the same metric that was used for the nearest neighbor search in the respective modality.
-        neighbor_keys: Keys in .uns where per-modality neighborhood information is stored. Defaults to ``"neighbors"``.
-            If set, only the modalities present in ``neighbor_keys`` will be used for multimodal nearest neighbor search.
-        metric: Distance measure to use. This will only be used in the final step to search for nearest neighbors in the set
-            of candidates.
-        low_memory: Whether to use the low-memory implementation of nearest-neighbor descent. If not set, will default to True
-            if the data set has more than 50 000 samples.
-        key_added: If not specified, the multimodal neighbors data is stored in ``.uns["neighbors"]``, distances and
-            connectivities are stored in ``.obsp["distances"]`` and ``.obsp["connectivities"]``, respectively. If specified, the
-            neighbors data is added to ``.uns[key_added]``, distances are stored in ``.obsp[key_added + "_distances"]`` and
-            connectivities in ``.obsp[key_added + "_connectivities"]``.
-        weight_key: Weight key to add to each modality's ``.obs`` or to ``mdata.obs``. By default, it is ``"mod_weight"``.
-        add_weights_to_modalities: If to add weights to individual modalities. By default, it is ``False``
-            and the weights will be added to ``mdata.obs``.
-        eps: Small number to avoid numerical errors.
-        method: library to use when calculating simplical sets. Ether "umap" for the normal method derived by ``scanpy`` or
-            "rapids" for a GPU-accelerated version from ``rapids_singlecell``. Requires ``rapids_singlecell`` to be installed.
-        copy: Return a copy instead of writing to ``mdata``.
-        random_state: Random seed.
+    Parameters
+    ----------
+    mdata : mu.MuData
+        Per-modality nearest neighbor search must have already been performed for all modalities
+        that are to be used for multimodal nearest neighbor search.
+    modality_weights : dict[str, float], Optional
+        A factor by which to weigh the modalities when contructing the joint neighborhood graph.
+    manual_weights : dict[str, :class:`npt.ArrayLike`], Optional
+        Supply your own weights!
+    n_neighbors : int, optional
+        Number of nearest neighbors to find. If ``None``, will be set to the arithmetic mean of per-modality
+        neighbors.
+    n_bandwidth_neighbors : int, default=20
+        Number of nearest neighbors to use for bandwidth selection.
+    n_multineighbors : int, default=200
+        Number of nearest neighbors in each modality to consider as candidates for multimodal nearest
+        neighbors. Only points in the union of per-modality nearest neighbors are candidates for multimodal nearest
+        neighbors. This will use the same metric that was used for the nearest neighbor search in the respective modality.
+    neighbor_keys : dict[str, str | None], Optional
+        Keys in .uns where per-modality neighborhood information is stored. Defaults to ``"neighbors"``.
+        If set, only the modalities present in ``neighbor_keys`` will be used for multimodal nearest neighbor search.
+    metric : DistMetric, default=DistMetric.euclidean
+        Distance measure to use. This will only be used in the final step to search for nearest neighbors in the set
+        of candidates.
+    low_memory : bool, optional
+        Whether to use the low-memory implementation of nearest-neighbor descent. If not set, will default to True
+        if the data set has more than 50 000 samples.
+    key_added : str, optional
+        If not specified, the multimodal neighbors data is stored in ``.uns["neighbors"]``, distances and
+        connectivities are stored in ``.obsp["distances"]`` and ``.obsp["connectivities"]``, respectively. If specified, the
+        neighbors data is added to ``.uns[key_added]``, distances are stored in ``.obsp[key_added + "_distances"]`` and
+        connectivities in ``.obsp[key_added + "_connectivities"]``.
+    weight_key : str, default="mod_weight"
+        Weight key to add to each modality's ``.obs`` or to ``mdata.obs``. By default, it is ``"mod_weight"``.
+    add_weights_to_modalities : bool, default=False
+        If to add weights to individual modalities. By default, it is ``False``
+        and the weights will be added to ``mdata.obs``.
+    eps : float, default=1e-4
+        Small number to avoid numerical errors.
+    method : Literal["umap", "rapids"], default="umap"
+        library to use when calculating simplical sets. Ether "umap" for the normal method derived by ``scanpy`` or
+        "rapids" for a GPU-accelerated version from ``rapids_singlecell``. Requires ``rapids_singlecell`` to be installed.
+    copy : bool, default=False
+        Return a copy instead of writing to ``mdata``.
+    random_state : int | np.random.RandomState, optional
+        Random seed.
 
-    Returns: Depending on ``copy``, returns or updates ``mdata``. Cell-modality weights will be stored in
+    Returns
+    -------
+    Depending on ``copy``, returns or updates ``mdata``. Cell-modality weights will be stored in
         ``.obs["modality_weight"]`` separately for each modality.
     """
     if method == "rapids":

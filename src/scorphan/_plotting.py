@@ -21,13 +21,24 @@ A_GOOD_LINEWIDTH: float = 0.5
 A_REASONABLE_WIDTH: int = 6
 A_REASONABLE_HEIGHT: int = 3
 
+
 class AxisVar(IntEnum):
+    r"""
+    :meta private:
+    """
+
     cells = 0
     features = 1
 
+
 class ScaleMethod(StrEnum):
+    r"""
+    :meta private:
+    """
+
     standard_scale = "standard_scale"
     z_score = "z_score"
+
 
 def density_heatmap(
     obs_df: pd.DataFrame,
@@ -38,13 +49,13 @@ def density_heatmap(
     cluster: bool = False,
     **kwargs,
 ) -> pd.DataFrame | None:
-    """Produce a heatmap displaying the fraction of the total of column_var made up of
+    r"""Produce a heatmap displaying the fraction of the total of column_var made up of
     each of the categories in row_var
 
     Parameters
     ----------
     obs_df: pd.DataFrame
-        `obs` from a :class:`anndata.Anndata` or :class:`mudata.MuData` object
+        `obs` from a :class:`anndata.AnnData` or :class:`mudata.MuData` object
     column_var: str
         obs column to use as the primary grouping variable
     row_var: str
@@ -60,7 +71,7 @@ def density_heatmap(
 
     Returns
     -------
-    :class:`pandas.DataFrame`
+    :class:`pd.DataFrame` :
         A dataframe containing percentage of each column_var group made up of each row_var
         group
 
@@ -209,7 +220,7 @@ def density_heatmap(
 
 def scale_data(
     data2d: pd.DataFrame | npt.ArrayLike,
-    axis: Literal[0,1] | None = 0,
+    axis: Literal[0, 1] | None = 0,
     method: ScaleMethod | None = ScaleMethod.standard_scale,
 ) -> pd.DataFrame | np.ndarray:
     r"""Standarize the mean and variance of the data axis
@@ -217,15 +228,16 @@ def scale_data(
 
     Parameters
     ----------
-    data2d : pandas.DataFrame
+    data2d : :class:`pandas.DataFrame` | :class:`npt.ArrayLike`
         Data to normalize
     axis : int
         Which axis to normalize across. If 0, normalize across rows, if 1,
         normalize across columns.
+    method : :class:`ScaleMethod`, default="standard_scale"
 
     Returns
     -------
-    normalized : pandas.DataFrame
+    :class:`pd.DataFrame` :
         Noramlized data with a mean of 0 and variance of 1 across the
         specified axis.
     """
@@ -245,6 +257,7 @@ def scale_data(
     data_df = data_df if axis == 1 else np.transpose(data_df)
     return data_df
 
+
 def prep_plot_df(
     adata: ad.AnnData,
     geneset: Sequence[str],
@@ -256,16 +269,10 @@ def prep_plot_df(
         warnings.warn(msg, stacklevel=2)
 
     if group_by is None:
-        plot_df = (
-            sc.get.obs_df(
-                adata, keys=adata.var_names.intersection(geneset).to_list()
-            )
-        )
+        plot_df = sc.get.obs_df(adata, keys=adata.var_names.intersection(geneset).to_list())
     else:
         plot_df = (
-            sc.get.obs_df(
-                adata, keys=[*adata.var_names.intersection(geneset).to_list(), group_by]
-            )
+            sc.get.obs_df(adata, keys=[*adata.var_names.intersection(geneset).to_list(), group_by])
             .groupby(group_by)
             .mean()
         )
@@ -276,6 +283,7 @@ def prep_plot_df(
         plot_df = plot_df.loc[:, [(np.std(plot_df) != 0)]]
 
     return plot_df
+
 
 def pathway_matrixplot(
     adata: ad.AnnData,
@@ -292,6 +300,39 @@ def pathway_matrixplot(
     linecolor: str = "grey",
     **kwargs,
 ) -> None:
+    r"""
+
+    Parameters
+    ----------
+    adata : ad.AnnData
+
+    geneset : Sequence[str]
+
+    group_by : str | None, default=None
+
+    width : int, default=6
+
+    height : int, default=3
+
+    cluster_rows : bool, default=True
+
+    cluster_cols : bool, default=True
+
+    scale_by : AxisVar | None, default=None
+
+    scale_method : ScaleMethod, default=ScaleMethod.standard_scale
+
+    cmap : str, default="viridis"
+
+    linewidths : float, default=0.5
+
+    linecolor : str, default="grey"
+
+    Returns
+    -------
+    None
+
+    """
 
     if "groupby" in kwargs and group_by is None:
         msg = "`groupby` is not a valid parameter - did you mean `group_by`? Assuming you did and carrying on."
@@ -324,6 +365,7 @@ def pathway_matrixplot(
         **kwargs,
     )
 
+
 def feature_hierarchy(
     adata: ad.AnnData,
     geneset: Sequence[str],
@@ -340,33 +382,34 @@ def feature_hierarchy(
 
     Parameters
     ----------
-    adata: :class:`anndata.Anndata`
+    adata : ad.AnnData
         Object containing expression values to use in clustering genes
-    geneset: :class:`collections.abc.Sequence[str]`
+    geneset : collections.abc.Sequence[str]
         obs column to use as the primary grouping variable
-    scale_by : :class:`AxisVar`
+    scale_by : AxisVar
         How should the data be scaled, by cells or by features? Default: "features"
-    group_by: str, Optional
+    group_by : str, Optional
         How should the cells be grouped, if they should be grouped. Default: None
-    method: str
+    method : str
         Method to use when determining feature similarity. Default: "average"
-    metric: str
+    metric : str
         Metric to use in determining feature similary. Default: "euclidean"
-    scaling_method: :class:`ScaleMethod`, Optional
+    scaling_method : ScaleMethod, Optional
         If the data is to be scaled, how should it be scaled? Using a "standard_scale" or "z_score"?. Default: None
     plot: bool
         Show the dendrogram produced? Default: False
-    return_dendro_dict:
-        Instead of a `feature | cluster` :class:`pd.DataFrame`, return the dictionary produced by scipy.hierarchy.dendrogram. Default = False
-    ax: mpl.axes.Axes
+    return_dendro_dict :
+        Instead of a `feature | cluster` pd.DataFrame, return the dictionary produced by scipy.hierarchy.dendrogram. Default = False
+    ax : matplotlib.axes.Axes
         Axes object to pass when plotting the dendrogram.
 
     Returns
     -------
-    By default, :class:`pandas.DataFrame`
+    pd.DataFrame
         A dataframe containing percentage of each column_var group made up of each row_var
         group
-    If `return_dendro_dict` is `True`, a `dict[str, Any]`
+    dict[str, Any]
+        If `return_dendro_dict` is `True`,
 
     Example
     -------

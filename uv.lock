@@ -1,5 +1,5 @@
 version = 1
-revision = 2
+revision = 3
 requires-python = ">=3.12, <=3.14"
 resolution-markers = [
     "python_full_version >= '3.14' and platform_machine == 'aarch64' and extra != 'extra-8-scorphan-gpu-cuda12' and extra == 'extra-8-scorphan-gpu-cuda13'",
@@ -164,7 +164,7 @@ version = "1.4.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "frozenlist" },
-    { name = "typing-extensions", marker = "python_full_version < '3.13'" },
+    { name = "typing-extensions", marker = "python_full_version < '3.13' or (extra == 'extra-8-scorphan-gpu-cuda12' and extra == 'extra-8-scorphan-gpu-cuda13')" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/61/62/06741b579156360248d1ec624842ad0edf697050bbaf7c3e46394e106ad1/aiosignal-1.4.0.tar.gz", hash = "sha256:f47eecd9468083c2029cc99945502cb7708b082c232f9aca65da147157b251c7", size = 25007, upload-time = "2025-07-03T22:54:43.528Z" }
 wheels = [
@@ -3538,7 +3538,7 @@ name = "nvidia-cufft-cu12"
 version = "11.3.3.83"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "nvidia-nvjitlink-cu12" },
+    { name = "nvidia-nvjitlink-cu12", marker = "platform_machine == 'x86_64' or extra == 'extra-8-scorphan-gpu-cuda12' or extra != 'extra-8-scorphan-gpu-cuda13'" },
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/60/bc/7771846d3a0272026c416fbb7e5f4c1f146d6d80704534d0b187dd6f4800/nvidia_cufft_cu12-11.3.3.83-py3-none-manylinux2014_aarch64.manylinux_2_17_aarch64.whl", hash = "sha256:848ef7224d6305cdb2a4df928759dca7b1201874787083b6e7550dd6765ce69a", size = 193109211, upload-time = "2025-03-07T01:44:56.873Z" },
@@ -3595,9 +3595,9 @@ name = "nvidia-cusolver-cu12"
 version = "11.7.3.90"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "nvidia-cublas-cu12" },
-    { name = "nvidia-cusparse-cu12" },
-    { name = "nvidia-nvjitlink-cu12" },
+    { name = "nvidia-cublas-cu12", marker = "platform_machine == 'x86_64' or extra == 'extra-8-scorphan-gpu-cuda12' or extra != 'extra-8-scorphan-gpu-cuda13'" },
+    { name = "nvidia-cusparse-cu12", marker = "platform_machine == 'x86_64' or extra == 'extra-8-scorphan-gpu-cuda12' or extra != 'extra-8-scorphan-gpu-cuda13'" },
+    { name = "nvidia-nvjitlink-cu12", marker = "platform_machine == 'x86_64' or extra == 'extra-8-scorphan-gpu-cuda12' or extra != 'extra-8-scorphan-gpu-cuda13'" },
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/c8/32/f7cd6ce8a7690544d084ea21c26e910a97e077c9b7f07bf5de623ee19981/nvidia_cusolver_cu12-11.7.3.90-py3-none-manylinux_2_27_aarch64.whl", hash = "sha256:db9ed69dbef9715071232caa9b69c52ac7de3a95773c2db65bdba85916e4e5c0", size = 267229841, upload-time = "2025-03-07T01:46:54.356Z" },
@@ -3623,7 +3623,7 @@ name = "nvidia-cusparse-cu12"
 version = "12.5.8.93"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "nvidia-nvjitlink-cu12" },
+    { name = "nvidia-nvjitlink-cu12", marker = "platform_machine == 'x86_64' or extra == 'extra-8-scorphan-gpu-cuda12' or extra != 'extra-8-scorphan-gpu-cuda13'" },
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/bc/f7/cd777c4109681367721b00a106f491e0d0d15cfa1fd59672ce580ce42a97/nvidia_cusparse_cu12-12.5.8.93-py3-none-manylinux2014_aarch64.manylinux_2_17_aarch64.whl", hash = "sha256:9b6c161cb130be1a07a27ea6923df8141f3c295852f4b260c65f18f3e0a091dc", size = 288117129, upload-time = "2025-03-07T01:47:40.407Z" },
@@ -5002,7 +5002,7 @@ dependencies = [
     { name = "session-info2" },
     { name = "statsmodels" },
     { name = "tqdm" },
-    { name = "typing-extensions", marker = "python_full_version < '3.13'" },
+    { name = "typing-extensions", marker = "python_full_version < '3.13' or (extra == 'extra-8-scorphan-gpu-cuda12' and extra == 'extra-8-scorphan-gpu-cuda13')" },
     { name = "umap-learn" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/0e/3e/180968c66be48f9dab747330beb2056df5bb7a115a56d3700da149c48916/scanpy-1.12.tar.gz", hash = "sha256:8139840bb948ce0aa0798c9b8b88c1df4f06c27641a792f0995d39cd4dcf858a", size = 14418589, upload-time = "2026-01-23T13:25:23.414Z" }
@@ -5246,14 +5246,6 @@ gpu-cuda13 = [
 ]
 
 [package.dev-dependencies]
-coding = [
-    { name = "nox" },
-    { name = "pandas-stubs" },
-    { name = "pre-commit" },
-    { name = "ruff" },
-    { name = "ty" },
-    { name = "types-seaborn" },
-]
 dev = [
     { name = "furo" },
     { name = "nox" },
@@ -5261,7 +5253,10 @@ dev = [
     { name = "pre-commit" },
     { name = "ruff" },
     { name = "sphinx" },
+    { name = "sphinx-autodoc-typehints" },
     { name = "sphinx-autodoc2" },
+    { name = "sphinx-datatables" },
+    { name = "sphinx-rtd-theme" },
     { name = "sphinxcontrib-napoleon" },
     { name = "ty" },
     { name = "types-seaborn" },
@@ -5269,7 +5264,10 @@ dev = [
 docs = [
     { name = "furo" },
     { name = "sphinx" },
+    { name = "sphinx-autodoc-typehints" },
     { name = "sphinx-autodoc2" },
+    { name = "sphinx-datatables" },
+    { name = "sphinx-rtd-theme" },
     { name = "sphinxcontrib-napoleon" },
 ]
 experiment = [
@@ -5279,6 +5277,16 @@ experiment = [
     { name = "jupyterlab" },
     { name = "jupyterlab-execute-time" },
     { name = "stackprinter" },
+]
+linting = [
+    { name = "pandas-stubs" },
+    { name = "ruff" },
+    { name = "ty" },
+    { name = "types-seaborn" },
+]
+tests = [
+    { name = "nox" },
+    { name = "pre-commit" },
 ]
 
 [package.metadata]
@@ -5318,14 +5326,6 @@ requires-dist = [
 provides-extras = ["gpu-cuda12", "gpu-cuda13"]
 
 [package.metadata.requires-dev]
-coding = [
-    { name = "nox", specifier = ">=2024.10.9" },
-    { name = "pandas-stubs", specifier = ">=2.2.3.250527" },
-    { name = "pre-commit", specifier = ">=4.1.0" },
-    { name = "ruff", specifier = ">=0.9.2" },
-    { name = "ty", specifier = ">=0.0.1a16" },
-    { name = "types-seaborn", specifier = ">=0.13.2.20250516" },
-]
 dev = [
     { name = "furo", specifier = ">=2025.12.19" },
     { name = "nox", specifier = ">=2024.10.9" },
@@ -5333,7 +5333,10 @@ dev = [
     { name = "pre-commit", specifier = ">=4.1.0" },
     { name = "ruff", specifier = ">=0.9.2" },
     { name = "sphinx", specifier = ">=9.1.0" },
+    { name = "sphinx-autodoc-typehints", specifier = ">=3.9.8" },
     { name = "sphinx-autodoc2", specifier = ">=0.5.0" },
+    { name = "sphinx-datatables", specifier = ">=1.0.0" },
+    { name = "sphinx-rtd-theme", specifier = ">=3.1.0" },
     { name = "sphinxcontrib-napoleon", specifier = ">=0.7" },
     { name = "ty", specifier = ">=0.0.1a16" },
     { name = "types-seaborn", specifier = ">=0.13.2.20250516" },
@@ -5341,7 +5344,10 @@ dev = [
 docs = [
     { name = "furo", specifier = ">=2025.12.19" },
     { name = "sphinx", specifier = ">=9.1.0" },
+    { name = "sphinx-autodoc-typehints", specifier = ">=3.9.8" },
     { name = "sphinx-autodoc2", specifier = ">=0.5.0" },
+    { name = "sphinx-datatables", specifier = ">=1.0.0" },
+    { name = "sphinx-rtd-theme", specifier = ">=3.1.0" },
     { name = "sphinxcontrib-napoleon", specifier = ">=0.7" },
 ]
 experiment = [
@@ -5351,6 +5357,16 @@ experiment = [
     { name = "jupyterlab", specifier = ">=4.4.10" },
     { name = "jupyterlab-execute-time", specifier = ">=3.2.0" },
     { name = "stackprinter", specifier = ">=0.2.12" },
+]
+linting = [
+    { name = "pandas-stubs", specifier = ">=2.2.3.250527" },
+    { name = "ruff", specifier = ">=0.9.2" },
+    { name = "ty", specifier = ">=0.0.1a16" },
+    { name = "types-seaborn", specifier = ">=0.13.2.20250516" },
+]
+tests = [
+    { name = "nox", specifier = ">=2024.10.9" },
+    { name = "pre-commit", specifier = ">=4.1.0" },
 ]
 
 [[package]]
@@ -5515,6 +5531,18 @@ wheels = [
 ]
 
 [[package]]
+name = "sphinx-autodoc-typehints"
+version = "3.9.8"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "sphinx" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/74/4d/02216afa475c838c123b41f30e3a2875ad27c14fae3f5bbed4ba4e7fd894/sphinx_autodoc_typehints-3.9.8.tar.gz", hash = "sha256:1e36b31ee593b7e838988045918b7fa965f5062abbd6800af96d5e2c3f17130e", size = 68763, upload-time = "2026-03-09T15:40:01.02Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/a8/6c/f275f59095b2fec6627c3ce2caba4e18f55a3925718cf0547cde04821a37/sphinx_autodoc_typehints-3.9.8-py3-none-any.whl", hash = "sha256:df123ec82479934fed27e31d4ccdcf382901c5d9481450fc224054496e574466", size = 36685, upload-time = "2026-03-09T15:39:59.567Z" },
+]
+
+[[package]]
 name = "sphinx-autodoc2"
 version = "0.5.0"
 source = { registry = "https://pypi.org/simple" }
@@ -5537,6 +5565,34 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/98/0b/a866924ded68efec7a1759587a4e478aec7559d8165fac8b2ad1c0e774d6/sphinx_basic_ng-1.0.0b2.tar.gz", hash = "sha256:9ec55a47c90c8c002b5960c57492ec3021f5193cb26cebc2dc4ea226848651c9", size = 20736, upload-time = "2023-07-08T18:40:54.166Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/3c/dd/018ce05c532a22007ac58d4f45232514cd9d6dd0ee1dc374e309db830983/sphinx_basic_ng-1.0.0b2-py3-none-any.whl", hash = "sha256:eb09aedbabfb650607e9b4b68c9d240b90b1e1be221d6ad71d61c52e29f7932b", size = 22496, upload-time = "2023-07-08T18:40:52.659Z" },
+]
+
+[[package]]
+name = "sphinx-datatables"
+version = "1.0.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "packaging" },
+    { name = "sphinx" },
+    { name = "sphinxcontrib-jquery" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/86/ee/7246d8b48187794bdeb7389d3bb1247850d3ae0015812e293182193715e1/sphinx_datatables-1.0.0.tar.gz", hash = "sha256:0d0aeccbcc3f4342e4f770848b00a074efb80f08e179a3330da57499cc47cc9d", size = 9548, upload-time = "2026-02-03T04:28:29.554Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/41/21/09a9e92d68e62642694cbd1bd76ba5a906e748c18904e95b7153e2af421e/sphinx_datatables-1.0.0-py3-none-any.whl", hash = "sha256:215a6245893605fe48c3e5a54dc5e66f29b3547e621bd5dd32aa748aac1f8c11", size = 8425, upload-time = "2026-02-03T04:28:28.33Z" },
+]
+
+[[package]]
+name = "sphinx-rtd-theme"
+version = "3.1.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "docutils" },
+    { name = "sphinx" },
+    { name = "sphinxcontrib-jquery" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/84/68/a1bfbf38c0f7bccc9b10bbf76b94606f64acb1552ae394f0b8285bfaea25/sphinx_rtd_theme-3.1.0.tar.gz", hash = "sha256:b44276f2c276e909239a4f6c955aa667aaafeb78597923b1c60babc76db78e4c", size = 7620915, upload-time = "2026-01-12T16:03:31.17Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/87/c7/b5c8015d823bfda1a346adb2c634a2101d50bb75d421eb6dcb31acd25ebc/sphinx_rtd_theme-3.1.0-py2.py3-none-any.whl", hash = "sha256:1785824ae8e6632060490f67cf3a72d404a85d2d9fc26bce3619944de5682b89", size = 7655617, upload-time = "2026-01-12T16:03:28.101Z" },
 ]
 
 [[package]]
@@ -5564,6 +5620,18 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/43/93/983afd9aa001e5201eab16b5a444ed5b9b0a7a010541e0ddfbbfd0b2470c/sphinxcontrib_htmlhelp-2.1.0.tar.gz", hash = "sha256:c9e2916ace8aad64cc13a0d233ee22317f2b9025b9cf3295249fa985cc7082e9", size = 22617, upload-time = "2024-07-29T01:09:37.889Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/0a/7b/18a8c0bcec9182c05a0b3ec2a776bba4ead82750a55ff798e8d406dae604/sphinxcontrib_htmlhelp-2.1.0-py3-none-any.whl", hash = "sha256:166759820b47002d22914d64a075ce08f4c46818e17cfc9470a9786b759b19f8", size = 98705, upload-time = "2024-07-29T01:09:36.407Z" },
+]
+
+[[package]]
+name = "sphinxcontrib-jquery"
+version = "4.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "sphinx" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/de/f3/aa67467e051df70a6330fe7770894b3e4f09436dea6881ae0b4f3d87cad8/sphinxcontrib-jquery-4.1.tar.gz", hash = "sha256:1620739f04e36a2c779f1a131a2dfd49b2fd07351bf1968ced074365933abc7a", size = 122331, upload-time = "2023-03-14T15:01:01.944Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/76/85/749bd22d1a68db7291c89e2ebca53f4306c3f205853cf31e9de279034c3c/sphinxcontrib_jquery-4.1-py2.py3-none-any.whl", hash = "sha256:f936030d7d0147dd026a4f2b5a57343d233f1fc7b363f68b3d4f1cb0993878ae", size = 121104, upload-time = "2023-03-14T15:01:00.356Z" },
 ]
 
 [[package]]
@@ -5950,7 +6018,7 @@ name = "tqdm"
 version = "4.67.3"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "colorama", marker = "sys_platform == 'win32'" },
+    { name = "colorama", marker = "sys_platform == 'win32' or (extra == 'extra-8-scorphan-gpu-cuda12' and extra == 'extra-8-scorphan-gpu-cuda13')" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/09/a9/6ba95a270c6f1fbcd8dac228323f2777d886cb206987444e4bce66338dd4/tqdm-4.67.3.tar.gz", hash = "sha256:7d825f03f89244ef73f1d4ce193cb1774a8179fd96f31d7e1dcde62092b960bb", size = 169598, upload-time = "2026-02-03T17:35:53.048Z" }
 wheels = [
