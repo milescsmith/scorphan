@@ -240,7 +240,6 @@ scikit-image==0.25.2
 scikit-learn==1.8.0
 scikit-misc==0.5.2
 scipy==1.17.1
--e file:///mnt/d/eternal_gallery/scorphan
 scvi-tools==1.4.2
 seaborn==0.13.2
 send2trash==1.8.3
