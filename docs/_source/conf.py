@@ -40,7 +40,6 @@ extensions = [
     "sphinx.ext.autosummary",
     "sphinx.ext.intersphinx",
     "sphinx.ext.napoleon",
-    "sphinxcontrib.jquery",
     "sphinx_datatables",
     "sphinx_autodoc_typehints",
 ]
