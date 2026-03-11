@@ -1,5 +1,10 @@
 # scorphan
 
+## [0.15.1] - 2026-03-11
+
+### Added
+- Added a `requirements.txt` for sphinx
+
 ## [0.15.0] - 2026-03-10
 
 ### Added
@@ -145,6 +150,7 @@
 
 - Created module
 
+[0.15.1]: https://github.com/milescsmith/scorphan/releases/compare/0.15.0..0.15.1
 [0.15.0]: https://github.com/milescsmith/scorphan/releases/compare/0.14.0..0.15.0
 [0.14.0]: https://github.com/milescsmith/scorphan/releases/compare/0.13.0..0.14.0
 [0.13.0]: https://github.com/milescsmith/scorphan/releases/compare/0.12.0..0.13.0
