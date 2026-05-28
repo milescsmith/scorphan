@@ -219,7 +219,7 @@ def density_heatmap(
 
 
 def scale_data(
-    data2d: pd.DataFrame | npt.ArrayLike,
+    data2d: pd.DataFrame | npt.NDArray[np.float64],
     axis: Literal[0, 1] | None = 0,
     method: ScaleMethod | None = ScaleMethod.standard_scale,
 ) -> pd.DataFrame | np.ndarray:
@@ -228,7 +228,7 @@ def scale_data(
 
     Parameters
     ----------
-    data2d : :class:`pandas.DataFrame` | :class:`npt.ArrayLike`
+    data2d : :class:`pandas.DataFrame` | :class:`npt.NDArray[np.float64]`
         Data to normalize
     axis : int
         Which axis to normalize across. If 0, normalize across rows, if 1,
@@ -242,14 +242,14 @@ def scale_data(
         specified axis.
     """
 
-    data_df: npt.ArrayLike = data2d if axis == 1 else np.transpose(data2d)
+    data_df: npt.NDArray[np.float64] = data2d if axis == 1 else np.transpose(data2d)
 
     match method:
         case ScaleMethod.standard_scale:
-            subtract = data_df.min()
-            data_df = (data_df - subtract) / (data_df.max() - data_df.min())
+            subtract = np.min(data_df)
+            data_df = (np.subtract(data_df, subtract)) / np.subtract(np.max(data_df), np.max(data_df))
         case ScaleMethod.z_score:
-            data_df = (data_df - data_df.mean()) / data_df.std()
+            data_df = np.subtract(data_df, np.mean(data_df)) / np.std(data_df)
         case _:
             msg = "That is not a scaling method I know."
             raise RuntimeError(msg)

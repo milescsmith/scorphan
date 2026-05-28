@@ -987,9 +987,9 @@ def pseudobulk_and_correlate(
 
     Parameters
     ----------
-    adata : ad.AnnData
+    adata : :class:`~anndata.AnnData`
         Source single-cell RNA-seq AnnData object to use for correlation analysis
-    olink : ad.AnnData
+    olink : :class:`~anndata.AnnData`
         Olink data for correlation analysis. MUST have at least some overlapping samples
         for each cell_type/group combination
     cell_type_col : str
@@ -1022,9 +1022,9 @@ def pseudobulk_and_correlate(
 
     Returns
     -------
-    correlation coefficients : pd.DataFrame
+    correlation coefficients : :class:`~pandas.DataFrame`
 
-    associated p-values : pd.DataFrame
+    associated p-values : :class:`~pandas.DataFrame`
     """
     cell_types = make_list_if_not(cell_types)
     groups = make_list_if_not(groups)
@@ -1096,3 +1096,108 @@ def pseudobulk_and_correlate(
         corr_df = corr_df.loc[~pd.isnull(corr_df).all(axis=1), ~pd.isnull(corr_df).all(axis=0)]
 
     return (corr_df, p_df)
+
+
+def add_gene_set_score(
+    adata: ad.AnnData,
+    features: dict[str, Sequence[str]],
+    pool: None = None,
+    num_bins: int = 24,
+    num_ctrls: int = 100,
+    seed: int = 70,
+    layer: str | None = None,
+    inplace: bool = True,
+):
+    """add_gene_set_score
+    Calculate and add a module score using the algorithm described in `Tirosh 2016`_
+    (i.e. `{Seurat}::AddModuleScore`)
+
+    Parameters
+    ----------
+    object : :class:`~anndata.AnnData`
+    features : dict[str, list[str]]
+        A dictionary of lists features for expression programs. Should have the form of 
+
+    .. _python ::
+        {
+            "M1.1": ['GP9', 'VWF', 'ALOX12', ...],
+            "M1.2": ['LY6E', 'IFIT1', 'OAS1', 'IFIT1', ...],
+            ...
+        }
+
+    pool
+        List of features to check expression levels against
+    num_bins
+        Number of bins of aggregate expression levels for all analyzed features
+    num_ctrls
+        Number of control features selected from the same bin per analyzed feature
+    layer : str, default=None
+        Layer to use for expression values. If `None`, use `adata.X`
+    seed : int, default=70
+        Number to use for numpy random number generator seed
+    inplace : bool, default=True
+        Write the results to `adata.obsm['score_tirosh']` or return a :class:~pandas.DataFrame of module scores
+
+    Returns
+    -------
+    Depending on `inplace`, returns or updates `adata.obsm['score_tirosh']`
+
+
+    Notes
+    -----
+    .. [1] I. Tirosh, et al. "Dissecting the multicellular ecosystem of
+    metastatic melanoma by single-cell RNA-seq," Science, vol. 352,
+    no. 6282, pp. 189-196, 2016, doi:10.1126/science.aad0501
+    """
+    if layer:
+        obj = adata.layers[layer]
+    else:
+        obj = adata.X
+
+    for key, values in features.items():
+        if not_found := [x for x in values if x not in adata.var_names and x is not None]:
+            logger.info(f"{', '.join(not_found)} were not found in the {key} and were dropped")
+        features[key] = set(values).intersection(adata.var_names)
+
+    pool = adata.var_names if pool is None else pool
+
+    data_means_sr = pd.Series(obj[:, adata.var_names.get_indexer(pool)].mean(axis=0)).sort_values()
+
+    rng = np.random.default_rng(seed=seed)
+
+    data_cut = np.array_split(
+        ary=np.add(data_means_sr, rng.normal(size=len(data_means_sr)) / 1e30),
+        indices_or_sections=num_bins,
+        axis=0,
+    )
+    data_cut = pd.concat([pd.Series(i, index=data_cut[i].index) for i, _ in enumerate(data_cut)])
+
+    ctrl_use = {
+        module: np.unique(
+            np.hstack(
+                [
+                    data_cut[data_cut == data_cut[gene]].sample(n=num_ctrls, replace=False).index
+                    for gene in features[module]
+                ]
+            )
+        )
+        for module in features.keys()
+    }
+
+    ctrl_scores_arr = np.vstack([obj[:, adata.var_names.get_indexer(ctrl_use[x])].mean(axis=1) for x in ctrl_use])
+    features_scores_arr = np.vstack([obj[:, adata.var_names.get_indexer(features[x])].mean(axis=1) for x in features])
+
+    features_scores_use_df = pd.DataFrame(
+        np.subtract(features_scores_arr, ctrl_scores_arr).T,
+        index=adata.obs_names,
+        columns=features.keys(),
+    )
+    features_scores_use_df = features_scores_use_df.sub(features_scores_use_df.min(axis=0), axis=1).div(
+        np.subtract(features_scores_use_df.max(axis=0), features_scores_use_df.min(axis=0)),
+        axis=1,
+    )
+
+    if inplace:
+        adata.obsm["score_tirosh"] = features_scores_use_df
+    else:
+        return features_scores_use_df

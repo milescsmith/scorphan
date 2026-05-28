@@ -1,9 +1,15 @@
 # scorphan
 
-## [0.15.1] - 2026-03-11
+## [0.15.1] - 2026-05-28
 
 ### Added
 - Added a `requirements.txt` for sphinx
+- Copylifted some scaling functions from Seaborn
+
+### Changed
+- Modified some function documentation
+
+### 
 
 ## [0.15.0] - 2026-03-10
 
